@@ -1,0 +1,10 @@
+# ── Core scientific packages ──────────────────────────
+numpy
+pandas
+scikit-learn
+imbalanced-learn
+tqdm
+
+pennylane==0.41.1
+pennylane-lightning==0.41.1   # fast CPU backend matching PennyLane version
+
