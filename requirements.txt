@@ -1,5 +1,5 @@
 # ── Core scientific packages ──────────────────────────
-numpy
+numpy<2
 pandas
 scikit-learn
 imbalanced-learn
@@ -7,4 +7,13 @@ tqdm
 
 pennylane==0.41.1
 pennylane-lightning==0.41.1   # fast CPU backend matching PennyLane version
+# GPU support
+# custatevec_cu12
+# pennylane-lightning-gpu
 
+# Add these packages for IBM Quantum support
+pennylane-qiskit
+qiskit
+qiskit-ibm-runtime
+
+python-dotenv
