@@ -59,6 +59,10 @@ TRAIN_FN = {
     "enhanced_qvae":         "train_enhanced_qvae",
     "dife_qae":              "train_dife_qae",
     "ls_swap_qae":           "train_ls_swap_qae",
+    # H1 fairness: classical methods on the SAME PCA-4D space as the quantum methods
+    "random_forest_4d":         "train_rf_4d",
+    "isolation_forest_4d":      "train_if_4d",
+    "classical_autoencoder_4d": "train_ae_4d",
 }
 ALL_METHODS = list(TRAIN_FN)
 # cells exec'd verbatim: imports / config / data / shared helpers
@@ -66,7 +70,7 @@ FULL_CELLS = [1, 2, 3, 4]
 # cells holding train-function DEFINITIONS. Each ends with a top-level
 # `xxx_result = train_xxx()` demo call that would run a FULL training at import
 # time -- we strip everything except def/class/import so only the functions load.
-DEF_CELLS = [6, 7, 8, 9, 11, 12, 13, 14]
+DEF_CELLS = [6, 7, 8, 9, 11, 12, 13, 14, 19]
 
 # one cached notebook namespace per worker process (built lazily, reused across jobs)
 _NS = None
