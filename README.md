@@ -123,13 +123,13 @@ AUC/Qubit:   0.2012 → 0.0666 (-66.9%)
 ### Dataset Preprocessing
 - **Source**: [Kaggle Credit Card Fraud Detection Dataset](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)
 - **Features**: 30 numerical features (V1-V28 PCA components + Time + Amount)
-- **Preprocessing Pipeline** (see `preprocessing.py`):
+- **Preprocessing Pipeline** (see `src/preprocessing.py`):
   - StandardScaler normalization for Time and Amount columns
   - Random undersampling to balance classes (fraud ≈ genuine transactions)
   - Removal of duplicate transactions and null values
   - Final balanced dataset: ~984 samples per class
 - **Split**: 80% training, 20% testing
-- **Output**: `preprocessed-creditcard.csv` (ready for experiments)
+- **Output**: `data/preprocessed-creditcard.csv` (ready for experiments)
 
 ### Quantum Circuit Architectures
 
@@ -239,7 +239,7 @@ pip install pennylane-qiskit qiskit qiskit-ibm-runtime python-dotenv
 
 #### Dataset Setup
 1. **Download the original dataset** from [Kaggle Credit Card Fraud Detection](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)
-2. **Use the preprocessed dataset**: This repository includes `preprocessed-creditcard.csv` which has been processed using `preprocessing.py`
+2. **Use the preprocessed dataset**: This repository includes `data/preprocessed-creditcard.csv` which has been processed using `src/preprocessing.py`
 3. **Preprocessing steps applied**:
    - StandardScaler normalization for Time and Amount features
    - Random undersampling for class balance (fraud ≈ genuine transactions)
@@ -248,17 +248,20 @@ pip install pennylane-qiskit qiskit qiskit-ibm-runtime python-dotenv
 ### Quick Start
 
 #### Option 1: Use Preprocessed Data (Recommended)
-The notebooks are configured to use `preprocessed-creditcard.csv` which is already balanced and ready for training:
+The notebooks load `data/preprocessed-creditcard.csv` (already balanced and ready for training) via a relative path, so run them from their own folder:
 
 ```bash
-# Run classical autoencoder baseline
-jupyter notebook Classical_AE.ipynb
+# Main integrated 8-method comparison (canonical notebook)
+jupyter notebook notebooks/comparison/comprehensive_comparison.ipynb
 
-# Compare quantum approaches  
-jupyter notebook QAE_Angle_vs_EnhancedQVAE_Comparison.ipynb
+# Classical autoencoder baseline
+jupyter notebook notebooks/classical/Classical_AE.ipynb
+
+# Quantum approaches comparison
+jupyter notebook notebooks/quantum/QAE_Angle_vs_EnhancedQVAE_Comparison.ipynb
 
 # IBM Quantum implementation
-jupyter notebook QAE_ibm.ipynb
+jupyter notebook notebooks/quantum/QAE_ibm.ipynb
 ```
 
 #### Option 2: Process Raw Data
@@ -266,16 +269,16 @@ If you want to preprocess the original Kaggle dataset:
 
 ```bash
 # 1. Download creditcard.csv from Kaggle
-# 2. Place it in the project directory
-# 3. Run preprocessing
-python preprocessing.py
+# 2. Place it in the data/ directory  ->  data/creditcard.csv
+# 3. Run preprocessing (writes data/preprocessed-creditcard.csv)
+cd src && python preprocessing.py && cd ..
 
 # 4. Then run the notebooks as above
 ```
 
 ### Dataset Information
 - **Original Source**: [Kaggle Credit Card Fraud Detection Dataset](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)
-- **Preprocessed File**: `preprocessed-creditcard.csv` (included in repository)
+- **Preprocessed File**: `data/preprocessed-creditcard.csv` (included in repository)
 - **Features**: 30 numerical features (V1-V28 PCA components + Time + Amount)
 - **Target**: Binary classification (0: Normal, 1: Fraud)
 - **Size**: Balanced dataset after preprocessing (~984 samples of each class)
@@ -284,20 +287,32 @@ python preprocessing.py
 
 ```
 quantum-autoencoder-fraud-detection/
-├── Classical_AE.ipynb                          # Classical MLPRegressor implementation
-├── QAE_Angle_vs_EnhancedQVAE_Comparison.ipynb  # Quantum approaches comparison
-├── QAE_ibm.ipynb                               # IBM Quantum cloud implementation
-├── preprocessing.py                            # Data preprocessing script
-├── preprocessed-creditcard.csv                 # Balanced dataset (ready to use)
-├── requirements.txt                            # Python dependencies
-└── README.md                                   # This comprehensive guide
+├── data/
+│   ├── creditcard.csv                  # Raw Kaggle dataset (git-ignored)
+│   └── preprocessed-creditcard.csv     # Balanced dataset (ready to use)
+├── src/
+│   └── preprocessing.py                # Data preprocessing script
+├── notebooks/
+│   ├── comparison/
+│   │   └── comprehensive_comparison.ipynb   # Canonical 8-method study
+│   ├── classical/                      # RF, IsolationForest, CNN, CNN_AE, Classical_AE
+│   ├── quantum/                        # QAE Angle/Enhanced, DIFE, LS-SWAP, IBM, circuit viz
+│   └── archive/                        # Superseded / exploratory notebooks
+├── docs/                               # Specs and experiment-design documents
+├── results/
+│   ├── result_temp.txt                 # Experiment logs
+│   └── figures/                        # Circuit diagrams and plots
+├── requirements.txt                    # Python dependencies
+└── README.md                           # This comprehensive guide
 ```
 
 ### File Descriptions
-- **`Classical_AE.ipynb`**: Classical autoencoder baseline using scikit-learn
-- **`QAE_Angle_vs_EnhancedQVAE_Comparison.ipynb`**: Complete quantum comparison study
-- **`QAE_ibm.ipynb`**: IBM Quantum hardware implementation
-- **`preprocessing.py`**: Data preprocessing pipeline for raw Kaggle dataset
-- **`preprocessed-creditcard.csv`**: Pre-processed, balanced dataset ready for experiments
+- **`notebooks/comparison/comprehensive_comparison.ipynb`**: Canonical notebook integrating all 8 methods (4 classical + 4 quantum) with the statistical repetition framework
+- **`notebooks/classical/`**: Standalone classical baselines (Random Forest, IsolationForest, CNN, CNN autoencoder, Classical autoencoder)
+- **`notebooks/quantum/`**: Quantum implementations — QAE Angle, Enhanced qVAE, DIFE, LS-SWAP (`dife_lsswap_implementation.ipynb`), IBM hardware (`QAE_ibm.ipynb`), and circuit visualizations
+- **`notebooks/archive/`**: Earlier comparison iterations and exploratory notebooks, kept for reference
+- **`src/preprocessing.py`**: Data preprocessing pipeline for the raw Kaggle dataset
+- **`data/preprocessed-creditcard.csv`**: Pre-processed, balanced dataset ready for experiments
+- **`docs/`**: Technical specification (DIFE & LS-SWAP) and the experiment-design document
 - **`requirements.txt`**: All required Python packages with versions
 
