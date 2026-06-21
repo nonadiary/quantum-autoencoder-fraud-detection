@@ -3,7 +3,7 @@ from sklearn.preprocessing import StandardScaler
 from imblearn.under_sampling import RandomUnderSampler
 
 # 1. Load the dataset
-df = pd.read_csv('creditcard.csv')
+df = pd.read_csv('../data/creditcard.csv')
 
 # 2. Handle missing/null values by dropping (if any) and remove duplicate rows
 df = df.dropna()               # drop rows with any nulls (if present)
@@ -35,4 +35,4 @@ df_resampled['Class'] = y_res
 df_resampled = df_resampled.sample(frac=1, random_state=42).reset_index(drop=True)
 
 # 5. Save the preprocessed balanced dataset
-df_resampled.to_csv('preprocessed-creditcard.csv', index=False)
+df_resampled.to_csv('../data/preprocessed-creditcard.csv', index=False)
