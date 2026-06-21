@@ -276,6 +276,23 @@ cd src && python preprocessing.py && cd ..
 # 4. Then run the notebooks as above
 ```
 
+#### Option 3: Parallel Headless Run (for the full study / rented compute)
+For the full 8-method study with repetitions, use the standalone parallel runner.
+It reuses the notebook's model code and spreads the independent (method, seed) jobs
+across CPU cores, so a high-core machine finishes far faster than the sequential
+notebook. Results are written to `results/experiment_results_parallel_<timestamp>.json`.
+
+```bash
+# Full study on all cores (use the conda env that has a working TensorFlow):
+/path/to/envs/my312/python.exe src/run_experiments.py
+
+# Quick wiring check (cheap): 1 rep, 3 epochs, two methods, 2 workers
+python src/run_experiments.py --reps 1 --epochs 3 --methods random_forest,qae_angle --n-jobs 2
+```
+Flags: `--n-jobs` (concurrent workers, default = all cores), `--reps`, `--methods`,
+`--epochs` (override for cheap validation). Note: at 4–13 qubits a GPU does **not**
+help; rent a high-core **CPU** instance instead.
+
 ### Dataset Information
 - **Original Source**: [Kaggle Credit Card Fraud Detection Dataset](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)
 - **Preprocessed File**: `data/preprocessed-creditcard.csv` (included in repository)
