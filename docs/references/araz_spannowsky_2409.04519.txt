@@ -1,0 +1,736 @@
+JLAB-THY-24-4170, IPPP/24/60
+The role of data embedding in quantum autoencoders for improved anomaly detection
+Jack Y. Araz 1, ∗ and Michael Spannowsky 2, †
+1Thomas Jefferson National Accelerator Facility, Newport News, V A 23606, USA
+2Institute for Particle Physics Phenomenology, Durham University,
+South Road, Durham DH1 3LE, United Kingdom
+(Dated: September 10, 2024)
+The performance of Quantum Autoencoders (QAEs) in anomaly detection tasks is critically de-
+pendent on the choice of data embedding and ansatz design. This study explores the effects of three
+data embedding techniques—data re-uploading, parallel embedding, and alternate embedding—on
+the representability and effectiveness of QAEs in detecting anomalies. Our findings reveal that even
+with relatively simple variational circuits, enhanced data embedding strategies can substantially
+improve anomaly detection accuracy and the representability of underlying data across different
+datasets. Starting with toy examples featuring low-dimensional data, we visually demonstrate the
+effect of different embedding techniques on the representability of the model. We then extend our
+analysis to complex, higher-dimensional datasets, highlighting the significant impact of embedding
+methods on QAE performance.
+I. INTRODUCTION
+Anomaly detection, the process of identifying data
+points that deviate significantly from established pat-
+terns, is a critical task with applications spanning multi-
+ple domains. These include fraud detection in finance [1],
+fault detection in industrial systems [2], and monitoring
+for cybersecurity threats [3]. Quantum computing, with
+its potential to provide exponential speedups over classi-
+cal methods, offers novel and promising pathways to en-
+hance machine learning algorithms [4, 5], including those
+used for anomaly detection [6–9].
+Variational Autoencoders (V AEs) [10] have been ex-
+tensively studied and applied in anomaly detection due
+to their ability to learn probabilistic representations of
+data. A V AE operates by encoding input data into a
+latent space and then reconstructing it; see the upper
+panel of Fig. 1. By learning the underlying distribution
+of normal data, V AEs can effectively flag anomalies as
+data points that deviate from this learned distribution.
+This approach has proven particularly useful in scenar-
+ios where the normal data distribution is complex and
+high-dimensional, making it difficult for simpler models
+to capture.
+Building on the success of classical V AEs, Quantum
+Autoencoders (QAEs) have recently emerged as powerful
+tools for anomaly detection [7, 8, 11–16]. QAEs utilize
+quantum circuits to learn compressed representations of
+normal data (see the lower panel of Fig. 1), potentially
+offering more efficient and accurate anomaly detection
+compared to their classical counterparts. However, the
+success of QAEs hinges on two crucial components: (1)
+the ansatz architecture, which determines the structure
+and expressive power of the quantum circuits, and (2)
+the data embedding method, which influences how well
+∗ jackaraz@jlab.org
+† michael.spannowsky@durham.ac.uk
+|0⟩
+|0⟩
+|0⟩
+EijE(x, Θ)
+DjiD(x, Θ)
+|0⟩
+|0⟩
+FIG. 1. Schematic comparison between classical (top panel)
+and quantum (bottom panel) autoencoders. Encoder and de-
+coder are labelled as E and D, respectively.
+classical data is represented in the quantum framework.
+Although initial studies have shown that QAEs can
+outperform classical autoencoders in specific anomaly de-
+tection tasks [7], there remains a significant gap in under-
+standing how different ansatz designs and data embed-
+ding strategies impact the performance of QAEs. The
+choice of ansatz affects the model’s ability to generalize
+and capture complex data patterns [17, 18], while the em-
+bedding strategy plays a critical role in determining how
+effectively classical data can be mapped into quantum
+circuits. Techniques like data reuploading and parallel
+embedding offer different trade-offs in terms of resource
+arXiv:2409.04519v1  [quant-ph]  6 Sep 2024
+2
+|a⟩ ˜HA
+|ψ⟩HA
+|ψ⟩HB
+ρout
+˜HA⊗HB
+ˆU (x, Θ)
+ˆU †(x, Θ)
+FIG. 2. Schematic representation of a quantum autoencoder
+circuit.
+efficiency and representational power [19, 20].
+Previous research has primarily focused on compar-
+ing various variational circuit design strategies to im-
+prove QAE performance or utilizing hybrid techniques to
+maximize the limited resources available [8, 11]. Other
+studies have explored semi-supervised techniques [13] or
+employed hybrid quantum-classical schemes, such as em-
+bedding affine transformations of the data with train-
+able parameters [17]. However, to our knowledge, there
+has been no comprehensive analysis of the impact of dif-
+ferent quantum embedding methods—specifically data
+re-uploading and parallel embedding, as introduced in
+Refs. [19, 20]—within the context of anomaly detection
+using QAEs.
+This paper aims to fill this gap by providing a de-
+tailed comparative analysis of various data embedding
+methods in the context of QAE-based anomaly detec-
+tion. We systematically explore how different embed-
+ding structures influence the capacity and performance of
+QAEs and evaluate their effectiveness in optimizing the
+representation of classical data within a quantum space.
+Our study highlights the strengths and limitations of each
+embedding approach and offers practical insights into the
+best practices for designing robust and efficient QAEs for
+anomaly detection applications.
+This study is organized as follows: Section II provides a
+brief introduction to quantum autoencoders, setting the
+foundation for understanding their role in anomaly detec-
+tion. In Section III, we delve into the various data em-
+bedding techniques and ansatz architectures employed in
+our experiments. The results are presented and analyzed
+in Section IV, with a focus on 2D datasets in Section IV A
+and high-dimensional datasets in Section IV B. Finally,
+our conclusions are discussed in Section V, summarizing
+the key findings of the study.
+II. QUANTUM AUTOENCODER
+A classical V AE consists of two main parts: an en-
+coder ( E) and a decoder ( D). The encoder embeds the
+input data into an ansatz and compresses it into a lower-
+dimensional latent space. The decoder then takes this
+compressed latent space as input and expands it back to
+the original dimensionality of the input data. By optimiz-
+|0⟩
+|0⟩ ˜HA
+|0⟩HA
+|0⟩HB
+E(x, Θ)
+H H
+FIG. 3. Schematic representation of the quantum autoen-
+coder circuit. E(x, Θ) represents the encoder circuit, H is the
+Hadamard gate, and Hi represents different Hilbert spaces.
+ing the distance or difference between the input data and
+the output from the network, the model can effectively
+capture the characteristics of the input. If the model is
+trained on a specific dataset, it can be used as a measure
+of anomaly to differentiate this dataset from others. The
+upper panel of Fig. 1 presents a schematic representation
+of the V AE, where a five-dimensional input is compressed
+into a two-dimensional latent space by the encoder and
+then reconstructed by the decoder. The encoder ( Eij)
+and decoder ( Dji) are represented as trainable network
+ans¨ atze.
+Similar to its classical counterpart, the QAE comprises
+an encoder (E) and a decoder ( D) separated by an infor-
+mation bottleneck. In this case, however, the encoder
+and decoder are implemented as sets of unitary trans-
+formations, i.e., quantum gates, that transform the in-
+put into a quantum state. Unlike classical autoencoders,
+where parts of the feature space can be discarded, uni-
+tary transformations preserve the entire Hilbert space.
+To address this, certain states are traced out to achieve
+the desired dimensionality reduction. The schematic rep-
+resentation of this quantum circuit is shown in the bot-
+tom panel of Fig. 1, where x denotes the inputs, and Θ
+represents the trainable parameters of the unitary trans-
+formations. A mid-circuit measurement has represented
+the dimensionality reduction.
+A more efficient quantum circuit can be implemented
+to optimise the training process. The transformation
+into a latent space and subsequent reconstruction can be
+achieved by inverting the encoder unitary and replacing
+reference states with a set of trash states |a⟩ ˜HA
+≡ |a⟩,
+typically initialised to |0⟩⊗dim[ ˜HA] ≡ |0⟩ ˜HA
+. This circuit
+is depicted in Fig. 2. To optimise the unitary transforma-
+tion, the goal is to minimise the difference between the
+input state |ψ⟩ ≡ |ψ⟩HA ⊗ |ψ⟩HB and the output state
+ρout ≡ ρout
+˜HA⊗HB
+, which can be done by measuring the fi-
+delity between these two states, ∥⟨ψ|ρout|ψ⟩∥2. Notably,
+since the decoder is the inverse of the encoder, the cir-
+3
+cuit can be further simplified using a SW AP test [21],
+which efficiently computes the projection between two
+states—in this case, between |a⟩ and |ψ⟩HA . Perfect re-
+construction is achieved when |a⟩ = |ψ⟩HA , i.e. when
+the fidelity is 1. This simplified circuit is illustrated in
+Fig. 3, where H represents the Hadamard gate, and the
+states are swapped via a controlled SW AP gate. The
+probability of successful reconstruction can be measured
+by projecting the encoder state in the reduced Hilbert
+space on trash states,
+p(x, Θ) =
+Proj
+
+|0⟩ ˜HA
+, |ψ⟩HA
+2
+, (1)
+where |ψ⟩ ≡ E(x, Θ)(|0⟩HA ⊗ |0⟩HB ). Both data embed-
+ding and the parameterised unitary transformations are
+encapsulated in E(x, Θ), which will be detailed in the
+following section. Using the fidelity as a probability dis-
+tribution of the state being reconstructed properly, we
+can construct mean negative log-probability as our cost
+function to minimise,
+C(X, Θ) = − 1
+N
+NX
+i
+log p(xi, Θ) , (2)
+to learn the likelihood distribution of the features. Here,
+N represents the number of samples and X includes N
+number of samples. Previous studies have also used cost
+functions like 1-fidelity; however, we did not observe any
+significant difference in the results. We will use the neg-
+ative log-probability as an anomaly measure to test our
+algorithm to differentiate between normal and anoma-
+lous samples. In the following section, we will discuss
+the data embedding procedure and the choice of ansatz
+for E(x, Θ).
+III. DA T A EMBEDDING AND THE CHOICE OF
+ANSA TZ
+Many different data embedding strategies have been
+developed for quantum machine learning applications.
+Two main options are amplitude embedding and angle
+embedding. In this study, we focus on the latter, but it
+should be noted that the former is more qubit efficient,
+but it has been suggested that amplitude embedding may
+be more prone to barren plateaus [22, 23], which is out
+of scope of this study.
+Angle embedding rotates each qubit by an angle de-
+fined by the input data, effectively mapping real data on
+a quantum state, RP (xi)|0⟩, where P is a Pauli operator
+(P ∈ {X, Y, Z}). The RP operation for a set of features,
+xi ∈ x, is expressed as:
+Sst(x) =
+nO
+i=0
+e−ixiP(i) , (3)
+where ⊗ denotes the Kronecker product and the subscript
+(i) indicates the qubit on which the operation is applied.
+In this study, we will explore the effects of expanding this
+embedding. Our previous work [24] demonstrated that
+embedding data within a multidimensional hypersphere
+can enhance the representability of the ansatz, a strategy
+we will also explore here. We will test this with two
+embedding methods.
+First, we introduce parallel embedding,
+SP(x) =
+nO
+i=0
+ 
+e−ixiY(2i) ⊗ e−ixiY(2i+1)
+
+, (4)
+where P is fixed to Y (though any Pauli operator can be
+used). Here, a single feature is embedded across two ad-
+jacent qubits, representing the number of features with
+n. Due to computational constraints, we limit this im-
+plementation to two qubits, but it can be extended to
+more.
+The second method is parallel and alternate embed-
+ding,
+SA(x) =
+nO
+i=0
+ 
+e−ixiY(2i) ⊗ e−ixiX(2i+1)
+
+, (5)
+where the second Pauli operator is switched to X. These
+methods aim to enhance data representation on a higher-
+dimensional manifold. A generalised version of these can
+be formulated as follows;
+SG(x) =
+nO
+i=0
+
+
+dO
+j=0
+e−ixiP(di+j)
+
+ (6)
+where d is the dimensionality of the embedding and Pauli
+operator P can be cycled between X, Y and Z. This
+indicates that the number of qubits required for this em-
+bedding is d × n while the depth of the quantum circuit
+remains the same as Eq. (3).
+We define the parameterised unitary ansatz to form the
+encoder following data embedding. In this study, we use
+strongly entangling layers [25], with each layer denoted
+as ˆU (Θi), where i is the layer index and Θ i represents
+the parameters of that layer. Unless otherwise specified,
+these layers consist of parameterised rotation gates, typ-
+ically one RY (θ ∈ Θi) per qubit. The rotation gates are
+followed by CNOT gates, which entangle each qubit with
+every other qubit.
+Finally, we construct the encoder by combining the pa-
+rameterised unitary with data embedding. We will use
+two approaches. The first, a standard method employed
+in many studies, applies data embedding followed by pa-
+rameterised unitaries:
+Est(x, Θ) = S(x)
+LY
+i=0
+ˆU (Θi) . (7)
+Here, L represents the number of layers.
+The second approach uses data reuploading [19, 20],
+which encodes data repeatedly in every layer, enhanc-
+ing representation. In this method, data is repeatedly
+4
+Dataset # Training # Validation # Test
+Moons 40000 10000 5000
+S Curve 8000 2000 5000
+Circle 31000 8000 5000
+Donut 40000 10000 5000
+Creditcard Fraud 225177 56863 2767
+TABLE I. Number of training, validation and test sample sizes
+for each dataset.
+embedded in each layer:
+ER(x, Θ) = ˆU (Θ0)
+LY
+i=1
+S(x) ˆU (Θi) . (8)
+Notice that each ˆU (Θi) represents a single layer of
+strongly entangled ansatz. The data re-uploading
+method has been shown to represent Fourier expansion
+for input data, which can be used to approximate any
+function, achieving a universal quantum encoding [20].
+It is important to note that Eq. (8) increases the depth
+of a given quantum circuit by one per layer compared to
+Eq. (7), which makes it more prone to errors due to the
+limited coherence time.
+IV. RESUL TS
+In this section, we present our results for two groups of
+datasets. In section IV A, we discuss the results for 2D
+datasets, which allows for the visualisation of the meth-
+ods used. In section IV B, we apply our approach to a
+higher-dimensional dataset to demonstrate that our find-
+ings hold in higher dimensions.
+We fixed a certain set of hyperparameters for all the
+results presented below. Each model was trained for 500
+epochs with a batch size of 100. We used Adam opti-
+miser [26] with an initial learning rate of 0.1. We ap-
+plied an exponential decay scheduler, which reduced the
+learning rate every 100 epochs with a decay rate of 0.5.
+Trainable parameters were initialized using a uniform dis-
+tribution between [ −π, π]. If overtraining occurred, we
+stopped the training and used the parameters from the
+point before overtraining began. The number of samples
+in the training, validation, and test sets for each dataset
+is provided in Table I. For the simulations, we used Pen-
+nyLane (version 0.35.1) [27] along with Jax (version
+0.4.30) [28] and CUDA (version 12.5) [29].
+A. Low dimensional datasets
+To visually examine the effects of data embedding in
+anomaly detection, we first utilised standard 2D datasets
+from Scipy (version 1.10.1) [30]. The sample sizes for
+each dataset are presented in the upper section of Table I.
+AUC
+Models R P A L Comp. Moons S Curve Circle Doughnut
+M1 ✗ ✗ ✗ 4 Y 0.916 0.601 0.919 0.047
+M2 ✓ ✗ ✗ 4 Y 0.904 0.861 0.999 0.988
+M3 ✓ ✓ ✗ 4 Y 0.974 0.743 0.982 0.797
+M4 ✓ ✗ ✓ 4 Y 0.950 0.889 0.991 0.843
+M5 ✓ ✗ ✗ 8 Y 0.845 0.776 0.915 0.914
+M6 ✓ ✗ ✓ 8 Y 0.996 0.924 0.984 0.895
+M7 ✓ ✗ ✓ 4 YXY 0.995 0.836 0.879 0.936
+M8 ✓ ✗ ✓ 6 YXY 1 0.945 0.995 0.937
+M9 ✓ ✗ ✓ 8 YXY 0.999 0.984 0.998 0.974
+TABLE II. Selected models and corresponding AUC value for
+each 2D dataset. From left to right, the columns represent
+data-reuploading (R), parallel encoding (P), alternate encod-
+ing (A), number of layers (L) and the composition of the
+ansatz (comp.). The rest of the columns show the datasets.
+We employed nine benchmark models to investigate
+the impact of different data embedding techniques. The
+properties of these models, along with the area under the
+Receiver Operating Characteristic (ROC) curve (denoted
+as AUC) for each dataset, are detailed in Table II. The
+table is organised as follows: the first column (labelled R)
+indicates whether the model uses the standard encoder
+(Eq. (7)) or the data-reuploading encoder (Eq. (8)). The
+subsequent columns specify whether parallel (P) or alter-
+nate (A) embedding was applied. The number of layers
+used (4, 6, or 8) is listed in the column labelled L. The
+composition (comp.) column details the set of rotation
+gates used in the strongly entangling layers, ˆU (Θ), where
+Y represents RY (θ), and Y XY denotes a composition
+of RY (θ1)RX (θ2)RY (θ3) for each qubit. In addition to
+AUC, we used accuracy values computed at 60% and 80%
+true positive rate (TPR) (or signal efficiency), presented
+in Table III for each model and dataset.
+The selected results are presented in Fig. 4. The re-
+sults for moons, s-curve, circle, and doughnut datasets
+are shown from left to right. Only models 1,5 and 9
+are selected to be shown in Fig. 4, which are positioned
+from top to bottom. Decision boundaries are presented
+using confidence intervals at 80%, 90%, 95%, and 98%,
+which are shown with blue, green, orange and dark red,
+respectively. These intervals were computed using a χ2
+distribution,
+χ2(x) = −2 log p(x, Θ)
+p(ˆx, Θ) ,
+where ˆx represents the grid points that maximize the
+probability within the region shown in each plot for a
+fixed set of parameters Θ. The χ2 values were calculated
+using grid data generated within the region presented in
+each plot, independent of the actual data. Each model
+was trained on the data represented by red dots, and
+AUC (shown in Table II) and accuracy (shown in Ta-
+ble III) values were computed based on the data shown
+5
+FIG. 4. Selected results from 2D datasets. From left to right, the image shows moons, s-curve, circle and doughnut datasets
+and from top to bottom, it shows the models M1, M5 and M9.
+with blue dots. Training, validation, and test data were
+generated independently using different random seeds. 1
+We observe that the AUC values do not necessarily
+indicate the successful reconstruction of the provided
+dataset. For instance, model M1 for the moons dataset
+resulted in a 0 .916 AUC value due to the separation be-
+tween the red and blue datasets, where a simple line can
+easily separate them. However, this does not indicate a
+good representation of the data with which the model has
+been trained. Similar behaviour can be observed in the
+circle dataset as well. Throughout each dataset, we ob-
+serve significant improvement in the AUC value and accu-
+racy of the model once different data embedding methods
+have been implemented. For instance, circle data can be
+perfectly represented using the data reuploading method
+with only four layers. Notice that it may even be possible
+to achieve such results with fewer layers, but the goal of
+this study is not to find the most efficient method but to
+compare different data embedding methods.
+1 AUC and accuracy values for the s-curve dataset are calculated
+with respect to pseudo-data generated outside of the s-curve re-
+gion, where the radial distance to any red point has been chosen
+to be greater than 0.07 au.
+It is important to emphasize that due to the simplic-
+ity of the 2D datasets, implementing various embedding
+strategies without sufficiently large variational ansatz has
+been observed to reduce the model’s performance for spe-
+cific instances. This is because the ansatz is not expres-
+sive enough to suppress the over-expressiveness of the em-
+bedding. For instance, we observe that four-layer data re-
+uploading is highly efficient in representing circular data;
+any addition increases the complexity of the training.
+Overall, all the datasets used for this exercise resulted
+in improved representation when data reuploading, par-
+allel, or alternate embedding was used. However, since
+2D datasets are highly simple, we investigate a higher-
+dimensional dataset in the following section.
+B. High dimensional datasets
+To evaluate the effectiveness of various data embed-
+ding approaches in a general context, we used Kaggle’s
+credit card fraud dataset. The data was standardized us-
+ing Scipy’s MinMaxScaler, scaling it to the range [−π, π].
+The 492 fraudulent cases were isolated from the rest of
+the dataset and reserved exclusively for testing. We fo-
+6
+0.08
+0.50
+0.92
+Signal Eﬃciency
+Base, AUC = 0.777
+Base A, AUC = 0.903
+R, AUC = 0.894
+RP, AUC = 0.886
+RA, AUC = 0.910
+Base, AUC = 0.778
+Base A, AUC = 0.892
+R, AUC = 0.928
+RP, AUC = 0.904
+RA, AUC = 0.912
+Base, AUC = 0.796
+Base A, AUC = 0.898
+R, AUC = 0.906
+RP, AUC = 0.915
+RA, AUC = 0.922
+0.08 0.50 0.92
+0.08
+0.50
+0.92
+Signal Eﬃciency
+Base, AUC = 0.846
+Base A, AUC = 0.901
+R, AUC = 0.889
+RP, AUC = 0.921
+RA, AUC = 0.926
+0.08 0.50 0.92
+Background Eﬃciency
+Base, AUC = 0.849
+Base A, AUC = 0.909
+R, AUC = 0.897
+RP, AUC = 0.921
+RA, AUC = 0.921
+0.08 0.50 0.92
+Base, AUC = 0.846
+Base A, AUC = 0.916
+R, AUC = 0.907
+RP, AUC = 0.920
+RA, AUC = 0.922
+FIG. 5. The ROC curves show the results for credit card fraud data, where rows represent 1 and 3 reference states used in
+the model and from left to right, each plot shows 4, 6, and 8-layer models. Letters are used in the legend to represent data-
+reuploading (R), parallel embedding (P) and alternate embedding (A). The dashed black line represents the random choice.
+cused on the first five columns of the dataset, labelled as
+Vi in the original data. A link to the dataset is provided
+in Section VI.
+Our results are organized based on several benchmarks,
+including the number of layers—4, 6, and 8—and the
+number of reference states—1 and 3. Additionally, we
+included a reference benchmark, labelled ’base,’ repre-
+senting the standard embedding approach using Eq. (7)
+with angle embedding (Eq. (3)). The other models are
+identified by letters: R for data reuploading, P for par-
+allel embedding, and A for alternate embedding. Refer-
+ence states were selected as the last one or three qubits
+where the data was embedded, regardless of the embed-
+ding type. For example, two of the last three qubits carry
+the data in parallel embedding.
+Figure 5 presents the ROC curves for each benchmark.
+The first row shows benchmarks with one reference state,
+while the second row shows benchmarks with three ref-
+erence states. The plots are arranged from left to right
+according to the number of layers—4, 6, and 8, respec-
+tively. We observe that the base model is significantly af-
+fected by both the number of layers and reference states.
+However, models utilizing different embedding methods
+demonstrate considerable robustness to these variations.
+When alternative data embedding or re-uploading tech-
+niques were applied, no significant improvements were
+observed with changes in the number of layers or refer-
+ence states. The results fluctuated within a few per cent
+for each benchmark.
+Additionally, we present the accuracy for each bench-
+mark in Table IV, focusing on two True Positive Rate
+(TPR) benchmarks at 60% and 80%. A significant drop
+in accuracy between the 60% and 80% benchmarks was
+observed in all the base models, whereas this drop was
+significantly reduced in all other models. This indicates
+that these embedding strategies enable a more robust
+ansatz for anomaly detection.
+The key takeaway from this exercise is the substan-
+tial improvement achieved through enhanced data em-
+bedding. Across all benchmarks, significant gains were
+observed when data reuploading or parallel and alternate
+embedding were used. This suggests that enhanced data
+embedding is crucial for improving the representability
+of the QAE in anomaly detection.
+V. SUMMAR Y & CONCLUSION
+In this study, we investigated the impact of differ-
+ent data embedding techniques on enhancing the repre-
+sentability of a quantum autoencoder for anomaly de-
+tection. We focused on three distinct embedding ap-
+proaches: data reuploading, parallel embedding, and
+alternate embedding, comparing their effects against a
+7
+Accuracy
+Model TPR Moons S Curve Circle Doughnut
+M1
+60% 79% 50% 76% 30%
+80% 83% 43% 83% 40%
+M2
+60% 78% 76% 76% 80%
+80% 84% 77% 88% 89%
+M3
+60% 80% 72% 76% 71%
+80% 88% 58% 88% 76%
+M4
+60% 80% 79% 76% 72%
+80% 89% 80% 88% 79%
+M5
+60% 79% 73% 76% 77%
+80% 76% 62% 88% 84%
+M6
+60% 80% 81% 76% 75%
+80% 90% 85% 86% 84%
+M7
+60% 80% 81% 76% 77%
+80% 90% 74% 88% 86%
+M8
+60% 80% 82% 76% 77%
+80% 90% 86% 88% 86%
+M9
+60% 80% 83% 76% 79%
+80% 90% 90% 88% 88%
+TABLE III. Accuracy values for each model presented in Ta-
+ble II for two true positive rate (TPR or signal efficiency)
+points at 60% and 80%.
+Accuracy
+L/#Ref TPR Base Base A R RP RA
+4/1 60% 81% 88% 91% 91% 91%
+80% 55% 85% 85% 84% 85%
+4/3 60% 94% 90% 90% 90% 91%
+80% 73% 83% 88% 89% 89%
+6/1 60% 82% 90% 91% 91% 91%
+80% 54% 86% 90% 87% 87%
+6/3 60% 91% 90% 91% 91% 91%
+80% 72% 87% 87% 88% 88%
+8/1 60% 91% 91% 92% 91% 91%
+80% 55% 85% 90% 87% 87%
+8/3 60% 91% 90% 91% 90% 90%
+80% 71% 87% 85% 89% 89%
+TABLE IV. Accuracy values for each model presented for
+credit card fraud data. The first column shows a number of
+layers (L) and a number of reference states (#Ref ) used in
+the model, followed by true positive rate (TPR) benchmarks
+at 60% and 80%.
+standard ansatz composition. Our primary objective
+was to highlight the importance of effectively mapping
+data onto a higher-dimensional manifold instead of rely-
+ing solely on complex and costly ansatz constructions.
+We employed well-established, strongly correlated lay-
+ers across all our benchmarks for the variational ansatz.
+Our findings demonstrate that, regardless of the data’s
+dimensionality, the choice of data embedding technique
+significantly influences the quality and representability
+of the variational quantum algorithm for anomaly de-
+tection. Notably, even a modest increase in the local
+Hilbert space—from 2 to 4 dimensions for a single fea-
+ture—resulted in substantial improvements. This sug-
+gests that further enlarging the data embedding space
+could lead to even more pronounced enhancements in
+performance.
+However, it is essential to acknowledge that such data
+embedding methods we explored, mainly parallel and al-
+ternate embeddings, entail higher resource costs due to
+the increased number of qubits required. This resource
+intensiveness shows that these techniques may be most
+practical in the fault-tolerant era of quantum comput-
+ing, where qubit availability and coherence times are no
+longer limiting factors.
+In conclusion, our study highlights the critical role of
+data embedding in optimizing the performance of quan-
+tum autoencoders for anomaly detection. As quantum
+hardware continues to evolve, adopting more sophisti-
+cated embedding techniques will likely be vital to un-
+locking the full potential of quantum machine learning
+algorithms, enabling them to tackle increasingly complex
+and high-dimensional data with greater accuracy.
+VI. DA T ASET AND CODE A V AILABILITY
+The code used for this analysis can be found in this
+GitHub repository. The credit card fraud data has been
+retrieved from Kaggle website, and 2D datasets are gen-
+erated using Scipy (version 1.10.1) [30].
+VII. ACKNOWLEDGEMENT
+JYA is supported by the U.S. Department of Energy,
+Office of Science, Office of Nuclear Physics with con-
+tract No. DE-AC05-06OR23177, under which Jefferson
+Science Associates, LLC operates Jefferson Lab and in
+part by the DOE, Office of Science, Office of Nuclear
+Physics, Early Career Program under contract No. DE-
+SC0024358.
+[1] E. W. Ngai, Y. Hu, Y. Wong, Y. Chen, and X. Sun,
+Decision Support Systems 50, 559 (2011).
+[2] V. J. Hodge and J. Austin, Artificial Intelligence Review
+22, 85 (2004).
+8
+[3] V. Chandola, A. Banerjee, and V. Kumar, ACM Com-
+puting Surveys (CSUR) 41, 1 (2009).
+[4] M. Schuld and F. Petruccione, Supervised learning with
+quantum computers, Vol. 17 (Springer, 2018).
+[5] J. Biamonte, P. Wittek, N. Pancotti, P. Rebentrost,
+N. Wiebe, and S. Lloyd, Nature 549, 195 (2017).
+[6] Y. Liu, S. Arunachalam, and K. Temme, arXiv preprint
+arXiv:1812.07199 (2018).
+[7] V. S. Ngairangbam, M. Spannowsky, and M. Takeuchi,
+Physical Review D 105, 10.1103/physrevd.105.095004
+(2022).
+[8] C. Duffy, M. Hassanshah, M. Jastrzebski, and S. Malik,
+(2024), arXiv:2407.07961 [quant-ph].
+[9] J. Y. Araz and M. Spannowsky, Phys. Rev. A 108,
+062422 (2023), arXiv:2211.03803 [quant-ph].
+[10] D. P. Kingma and M. Welling, Auto-encoding variational
+bayes (2022), arXiv:1312.6114 [stat.ML].
+[11] A. Sakhnenko, C. O’Meara, K. J. B. Ghosh, C. B. Mendl,
+G. Cortiana, and J. Bernab´ e-Moreno, Quantum Machine
+Intelligence 4, 27 (2022), arXiv:2112.08869 [quant-ph].
+[12] M. Hdaib, S. Rajasegarar, and L. Pan, inNeural Informa-
+tion Processing, edited by B. Luo, L. Cheng, Z.-G. Wu,
+H. Li, and C. Li (Springer Nature Singapore, Singapore,
+2024) pp. 69–82.
+[13] K. Tscharke, S. Issel, and P. Debus, in 2023 Interna-
+tional Conference on Quantum Computing and Engineer-
+ing (2023) arXiv:2308.00583 [quant-ph].
+[14] T. Cheng, J.-F. m. c. Arguin, J. Leissner-Martin,
+J. Pilette, and T. Golling, Phys. Rev. D 107, 016002
+(2023).
+[15] J.-M. Liang, S.-Q. Shen, M. Li, and L. Li, Phys. Rev. A
+99, 052310 (2019).
+[16] K. J. B. Ghosh and S. Ghosh, Phys. Rev. B 108, 165408
+(2023).
+[17] C. Bravo-Prieto, Mach. Learn. Sci. Tech. 2, 035028
+(2021), arXiv:2010.06599 [quant-ph].
+[18] M. Bilkis, M. Cerezo, G. Verdon, P. J. Coles, and L. Cin-
+cio, Quantum Machine Intelligence 5, 43 (2023).
+[19] A. P´ erez-Salinas, A. Cervera-Lierta, E. Gil-Fuster, and
+J. I. Latorre, Quantum 4, 226 (2020).
+[20] M. Schuld, R. Sweke, and J. J. Meyer, Phys. Rev. A 103,
+032430 (2021), arXiv:2008.08605 [quant-ph].
+[21] H. Buhrman, R. Cleve, J. Watrous, and R. de Wolf, Phys.
+Rev. Lett. 87, 167902 (2001).
+[22] H.-Y. Huang, M. Broughton, M. Mohseni, R. Babbush,
+S. Boixo, H. Neven, and J. R. McClean, Nature Commu-
+nications 12, 2631 (2021).
+[23] Y. Du, M.-H. Hsieh, T. Liu, S. You, and D. Tao, PRX
+Quantum 2, 040337 (2021).
+[24] J. Y. Araz and M. Spannowsky, JHEP 08, 112,
+arXiv:2106.08334 [hep-ph].
+[25] M. Schuld, A. Bocharov, K. M. Svore, and N. Wiebe,
+Phys. Rev. A 101, 032308 (2020), arXiv:1804.00633
+[quant-ph].
+[26] D. P. Kingma and J. Ba, Adam: A method for stochastic
+optimization (2017), arXiv:1412.6980 [cs.LG].
+[27] V. Bergholm, J. Izaac, M. Schuld, C. Gogolin, M. S.
+Alam, S. Ahmed, J. M. Arrazola, C. Blank, A. Del-
+gado, S. Jahangiri, K. McKiernan, J. J. Meyer, Z. Niu,
+A. Sz´ ava, and N. Killoran, (2020), arXiv:1811.04968
+[quant-ph].
+[28] J. Bradbury, R. Frostig, P. Hawkins, M. J. Johnson,
+C. Leary, D. Maclaurin, G. Necula, A. Paszke, J. Van-
+derPlas, S. Wanderman-Milne, and Q. Zhang, JAX: com-
+posable transformations of Python+NumPy programs
+(2018).
+[29] NVIDIA, P. Vingelmann, and F. H. Fitzek, Cuda, release:
+10.2.89 (2020).
+[30] P. Virtanen, R. Gommers, T. E. Oliphant, M. Haber-
+land, T. Reddy, D. Cournapeau, E. Burovski, P. Pe-
+terson, W. Weckesser, J. Bright, S. J. van der Walt,
+M. Brett, J. Wilson, K. J. Millman, N. Mayorov, A. R. J.
+Nelson, E. Jones, R. Kern, E. Larson, C. J. Carey, ˙I. Po-
+lat, Y. Feng, E. W. Moore, J. VanderPlas, D. Laxalde,
+J. Perktold, R. Cimrman, I. Henriksen, E. A. Quintero,
+C. R. Harris, A. M. Archibald, A. H. Ribeiro, F. Pe-
+dregosa, P. van Mulbregt, and SciPy 1.0 Contributors,
+Nature Methods 17, 261 (2020).

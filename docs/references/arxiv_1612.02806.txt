@@ -1,0 +1,884 @@
+Quantum autoencoders for efﬁcient compression of quantum data
+Jonathan Romero, 1 Jonathan P. Olson, 1 and Alan Aspuru-Guzik 1,∗
+1Department of Chemistry and Chemical Biology, Harvard University, Cambridge, Massachusetts 02138, United States
+(Dated: February 14, 2017)
+Classical autoencoders are neural networks that can learn efﬁcient low dimensional representations of data in
+higher dimensional space. The task of an autoencoder is, given an input x, is to map x to a lower dimensional
+pointy such thatx can likely be recovered fromy. The structure of the underlying autoencoder network can be
+chosen to represent the data on a smaller dimension, effectively compressing the input. Inspired by this idea,
+we introduce the model of a quantum autoencoder to perform similar tasks on quantum data. The quantum au-
+toencoder is trained to compress a particular dataset of quantum states, where a classical compression algorithm
+cannot be employed. The parameters of the quantum autoencoder are trained using classical optimization algo-
+rithms. We show an example of a simple programmable circuit that can be trained as an efﬁcient autoencoder.
+We apply our model in the context of quantum simulation to compress ground states of the Hubbard model and
+molecular Hamiltonians.
+I. INTRODUCTION
+Quantum technologies, ranging from quantum computing
+to quantum cryptography, have been found to have increas-
+ingly powerful applications for a modern society. Quantum
+simulators for chemistry, for example, have been recently
+shown to be capable of efﬁciently calculating molecular en-
+ergies for small systems [1]; the capability for larger scale
+simulations promises to have deep implications for materials
+design, pharmacological research, and an array of other poten-
+tially life-changing functions [2]. A limiting factor for nearly
+all of these applications, however, is the amount of quantum
+resources that can be realized in an experiment. Therefore, for
+experiments now and in the near future, any tool which can re-
+duce the experimental overhead in terms of these resources is
+especially valuable.
+For classical data processing, machine learning via an au-
+toencoder is one such tool for dimensional reduction [3–5], as
+well as having application in generative data models [6]. A
+classical autoencoder is a function whose parameters are opti-
+mized across a training set of data which, given an(n +k)-bit
+input string x, attempts to reproduce x. Part of the speciﬁ-
+cation of the circuit, however, is to erase some k bits during
+the process. If an autoencoder is successfully trained to repro-
+ducex at the output at least approximately, then the remaining
+n bits immediately after the erasure (referred to as the latent
+space) represent a compressed encoding of the stringx. Thus,
+the circuit “learns” to encode information that is close to the
+training set.
+In this paper, we introduce the concept of a quantum au-
+toencoder which is inspired by this design for an input ofn+k
+qubits. Because quantum mechanics is able to generate pat-
+terns with properties (e.g. superposition and entanglement)
+that is beyond classical physics, a quantum computer should
+also be able to recognize patterns that are beyond the capabil-
+ities of classical machine learning. Thus, the motivation for a
+quantum autoencoder is simple; such a model allows us to per-
+form analogous machine learning tasks for quantum systems
+∗ Corresponding author: aspuru@chemistry.harvard.edu
+Figure 1. a) A graphical representation of a 6-bit autoencoder with
+a 3-bit latent space. The mapE encodes a 6-bit input (red dots) into
+a 3-bit intermediate state (yellow dots), after which the decoder D
+attempts to reconstruct the input bits at the output (green dots). b)
+Circuit implementation of a 6-3-6 quantum autoencoder.
+without exponentially costly classical memory, for instance,
+in dimension reduction of quantum data. A related work
+proposing a quantum autoencoder model establishes a formal
+connection between classical and quantum feedforward neural
+networks where a particular setting of parameters in the quan-
+tum network reduces to a classical neural network exactly [7].
+In this work, we provide a simpler model which we believe
+more easily captures the essence of an autoencoder, and ap-
+ply it to ground states of the Hubbard model and molecular
+Hamiltonians.
+arXiv:1612.02806v2  [quant-ph]  10 Feb 2017
+2
+II. QUANTUM AUTOENCODER MODEL
+In analogy with the model of classical autoencoders, the
+quantum network has a graphical representation consisting of
+an interconnected group of nodes. In the graph of the quantum
+network, each node represents a qubit, with the ﬁrst layer of
+the network representing the input register and the last layer
+representing the output register. In our representation, the
+edges connecting adjacent layers represent a unitary transfor-
+mation from one layer to the next. Autoencoders, in partic-
+ular, shrink the space between the ﬁrst and second layer, as
+depicted in Figure 1a.
+For a quantum circuit to embody an autoencoder network,
+the information contained in some of the input nodes must
+be discarded after the initial “encoding” E. We imagine this
+takes place by tracing over the qubits representing these nodes
+(in Figure 1b, this is represented by a measurement on those
+qubits). Fresh qubits (initialized to some reference state) are
+then prepared and used to implement the ﬁnal “decoding” evo-
+lutionD, which is then compared to the initial state.
+The learning task for a quantum autoencoder is to ﬁnd uni-
+taries which preserve the quantum information of the input
+through the smaller intermediate latent space. To this end, it
+is important to quantify the deviation from the initial input
+state,|ψi⟩, to the output,ρout
+i . Here, we will use the expected
+ﬁdelity [8] F (|ψi⟩,ρout
+i ) =⟨ψi|ρout
+i |ψi⟩. We thus describe
+a successful autoencoding as one in whichF (|ψi⟩,ρout
+i )≈ 1
+for all the input states.
+A more formal description of a quantum autoencoder fol-
+lows: Let{pi,|ψi⟩AB} be an ensemble of pure states onn+k
+qubits, where subsystems A andB are comprised of n andk
+qubits, respectively. Let{U⃗ p} be a family of unitary operators
+acting onn +k qubits, where⃗ p={p1,p 2,... } is some set of
+parameters deﬁning a unitary quantum circuit. Also let |a⟩B′
+be some ﬁxed pure reference state of k qubits. Using classi-
+cal learning methods, we wish to ﬁnd the unitary U⃗ pwhich
+maximizes the average ﬁdelity, which we deﬁne to be the cost
+function,
+C1(⃗ p) =
+∑
+i
+pi·F (|ψi⟩,ρout
+i,⃗ p), (1)
+where,
+ρout
+i,⃗ p= (U⃗ p)†
+AB′ TrB
+[
+U⃗ p
+AB
+[
+ψiAB⊗aB′
+]
+(U⃗ p
+AB)†
+]
+(U⃗ p)AB′ ,
+(2)
+and we have abbreviated|ψi⟩⟨ψi|AB =ψiAB and|a⟩⟨a|B′ =
+aB′. Equivalently, the goal is to ﬁnd the best unitary U⃗ p
+which, on average, best preserves the input state of the cir-
+cuit in Figure 2 where instead of tracing over the B system,
+we employ a swap gate and trace over theB′ system.
+To prove this, consider the ﬁdelity of the input and output
+of the entire system of Figure 2 for some ﬁxed ⃗ pwhere we
+Figure 2. A quantum autoencoder circuit. The goal is to ﬁnd ⃗ psuch
+that the averagedF (|ψ⟩i,ρ out
+i,⃗ p) is maximized.
+have denoted the swap operation by the unitaryV ,
+F (|ψi⟩AB⊗|a⟩B′,U†
+ABVBB ′UAB|ψi⟩AB⊗|a⟩B′) =
+F (UAB|ψi⟩AB⊗|a⟩B′,VBB ′UAB|ψi⟩AB⊗|a⟩B′) =
+F (|ψ′
+i⟩AB⊗|a⟩B′,VBB ′|ψ′
+i⟩AB⊗|a⟩B′) =
+F (|ψ′
+i⟩AB⊗|a⟩B′,|ψ′
+i⟩AB′⊗|a⟩B), (3)
+where we have denoted U|ψi⟩ =|ψ′
+i⟩. The terms in the cost
+function are found by tracing out over theB′ system,
+F (TrB′[ψ′
+iAB⊗a′
+B
+], TrB′[ψ′
+iAB′⊗aB]) =
+F (ψ′
+iAB,ρ′
+A⊗aB), (4)
+where ρ′
+A = TrB′|ψ′
+i⟩⟨ψ′
+i|AB′]. However, consider instead
+tracing over theAB system and looking at the “trash system”
+ofB′,
+F (TrAB
+[
+ψ′
+iAB⊗a′
+B
+]
+, TrAB
+[
+ψ′
+iAB′⊗aB
+]
+) =
+F (|a⟩B′,ρ′
+B′), (5)
+whereρ′
+B′ = TrA[|ψ′
+i⟩⟨ψ′
+i|AB′]. We henceforth refer to ρ′
+B′
+as the “trash state” of the circuit. It is straightforward to see
+in the above circuit that perfect ﬁdelity (i.e. C1 = 1) can be
+achieved by a unitaryU if and only if, for alli:
+U|ψi⟩AB =|ψc
+i⟩A⊗|a⟩B . (6)
+where|ψc
+i⟩A is some compressed version of|ψi⟩. This follows
+because, if theB andB′ systems are identical when the swap
+occurs, the entire circuit reduces to the identity map. How-
+ever, this occurs precisely when the trash state is equal to the
+reference state, i.e., F (|a⟩B′,ρ′
+B′) = 1 . This implies that it
+is possible to accomplish the learning task of ﬁnding the ideal
+U⃗ pby training only on the trash state . Furthermore, because
+Eq. (6) is completely independent ofU†, this suggests that the
+circuit of Figure 2 can be reduced further. We then consider
+an alternative deﬁnition of the cost function in terms of the
+trash state ﬁdelity,
+C2(⃗ p) =
+∑
+i
+pi·F (TrA
+[
+U⃗ p|ψi⟩⟨ψi|AB (U⃗ p)†
+]
+,|a⟩B), (7)
+Note, however, that the cost functions of Eq. (1) and Eq. (7)
+are not in general the same (in fact, C1≤ C2). However, in
+practice, one must consider resource limitations; it is not hard
+to see that preparing copies of a ﬁxed reference state would be
+easier than requiring identical copies of the input state to use
+in a SW AP test on the entire output state. For some applica-
+tions of a quantum autoencoder, it may also be the case that
+3
+(a)
+ (b)
+Figure 3. Two programmable circuits employed as autoencoder models: a) Circuit A: a network of all the possible two-qubit gates (denoted by
+Ui) among the qubits. b) Circuit B: a network comprising all the possible controlled general single-qubit rotations (denoted by R i) in a qubit
+set, plus single qubit rotations at the beginning and at the end of the unit-cell. All the circuits are depicted in the case of a four-qubit input.
+The unit-cell is delimited by the red dotted line.
+one has limited access to or limited knowledge of the input
+state.
+It is interesting to note that, if we only care about circuits
+whereC2≈ 1, we can re-imagine the problem to being one
+of ﬁnding a particular disentangling. It has been shown that,
+employing a circuit of exponential depth, one is always able
+to perform a disentangling operation [9], but to perform this
+operation in constant or polynomial depth is hard, and so clas-
+sical heuristics are often used to ﬁnd quantum circuits that are
+as close to optimal as possible. Also, information-theoretic
+bounds have been explored in this context before, both in
+the context of one-shot compression and one-shot decoupling
+[10, 11]. However, because the heuristics involved in choos-
+ing efﬁcient-to-implement families of unitaries are largely ad-
+hoc, it is difﬁcult to say if these bounds are meaningful in the
+context of a quantum autoencoder.
+III. IMPLEMENTATION OF THE QUANTUM
+AUTOENCODER MODEL
+To implement the quantum autoencoder model on a quan-
+tum computer we must deﬁne the form of the unitary, U⃗ p
+(Eq. (2)) and decompose it into a quantum circuit suitable for
+optimization. For the implementation to be efﬁcient, the num-
+ber of parameters and the number of gates in the circuit should
+scale polynomially with the number of input qubits. This re-
+quirement immediately eliminates the possibility of using a
+(n +k)-qubit general unitary as U⃗ pdue to the exponential
+scaling in the number of parameters needed to generate them.
+One alternative for the generation ofU⃗ pis to employ a pro-
+grammable quantum circuit [12, 13]. This type of circuit con-
+struction consists of a ﬁxed networks of gates, where a poly-
+nomial number of parameters associated to the gates i.e. rota-
+tion angles, constitute ⃗ p. The pattern deﬁning the network of
+gates is regarded as a unit-cell. This unit-cell can ideally be
+repeated to increase the ﬂexibility of the model. For the nu-
+merical assessment presented in this work, we employed two
+simple programmable circuits illustrated in Figure 3.
+Circuit A has a unit-cell comprising a network of general
+two-qubit gates where we have considered all the possible
+pairings between qubits, as illustrated in Figure 3a for the
+four-qubit case. Accordingly, this model requires 15n(n−
+1)/2 training parameters per unit-cell. A network of arbi-
+trary two qubit gates can be easily implemented using state of
+the art superconducting qubit technologies [14] and the stan-
+dard decomposition of a two-qubit gate into three CNOT gates
+and single-qubit rotations [15]. Arbitrary two qubit-gates have
+been also implemented using ion traps [16] and quantum dots
+[17].
+Circuit B has a unit-cell comprising all the possible con-
+trolled one-qubit rotations among a set of qubits, comple-
+mented with a set of single qubit rotations at the beginning
+and at the end of the unit-cell, as shown in Figure 3b for the
+four-qubit case. We start considering the rotations controlled
+by the ﬁrst qubit, followed by the rotations controlled by the
+second qubit and so on. Accordingly, our second model com-
+prises 3n(n−1)+6n training parameters per unit-cell and can
+be implemented in state of the art quantum hardware using
+the standard decomposition of controlled unitaries into two
+CNOT gates and single-qubit rotations [18]. This model is
+also general and can be modiﬁed by adding constraints to the
+parameters. For instance, one could consider the initial and
+ﬁnal layers of rotations to be all the same.
+Once the circuit model has been chosen, we must train the
+network by maximizing the autoencoder cost function Eq. (7),
+in close analogy to classical autoencoders. Our training pro-
+cedure adopts a quantum-classical hybrid scheme in which
+the state preparation and measurement are performed on the
+quantum computer while the optimization is realized via an
+optimization algorithm running on a classical computer. Such
+hybrid schemes have been proposed in the context of quan-
+tum machine learning [19, 20] and variational algorithms for
+quantum simulation [21–24]. In the later case, several ex-
+perimental demonstrations have been successfully carried out
+[1, 21, 25].
+As described in Section II, the cost function of the quantum
+autoencoder is deﬁned as the weighted average of ﬁdelities
+between the trash state produced by the compression, and the
+reference state. These ﬁdelities can be measured via a SW AP
+test [26] between the reference state and the trash state. Ac-
+cordingly, our quantum register must comprise the input state,
+|ψi⟩, and the reference state. In a single iteration of our train-
+ing algorithm, we perform the following steps for each of the
+states in the training set:
+4
+Figure 4. Schematic representation of the hybrid scheme for training
+a quantum autoencoder. After preparation of the input state, |ψi⟩,
+the state is compressed by the application of the parameterized uni-
+tary, U⃗ p. The overlap between the reference state and the trash state
+produced by the compression is measured via a SW AP test. The re-
+sults for all the states in the training set are collected to compute the
+cost function that is minimized using a classical optimization algo-
+rithm. The process is repeated until achieving convergence on the
+cost function and/or the values of the parameters,⃗ p= (p1, p2,... ).
+Figure 5. Graphical representation of Hilbert space compression.
+Given that the states of interest have support on only a subset S of
+the Hilbert space (gray pieces), the quantum autoencoder ﬁnds an
+encoding that uses a space of size|S|.
+1. Prepare the input state,|ψi⟩, and the reference state. We
+assume these preparations to be efﬁcient.
+2. Evolve under the encoding unitary, U⃗ p, where ⃗ pis the
+set of parameters at a given optimization step.
+3. Measure the ﬁdelity between the trash state and the ref-
+erence state via a SW AP test.
+With the estimates of all the ﬁdelities, the cost function
+(Eq. (7)) is computed and fed into a classical optimization rou-
+tine that returns a new set of parameters for our compression
+circuit. These steps are repeated until the optimization algo-
+rithm converges. Given that the value of the cost function is
+upper bounded by 1, we performed the optimization by min-
+imizing the value of the function log10 (1−C2). This pro-
+cedure is widely used in machine learning applications and
+helps prevent numerical instabilities [27]. A graphical sum-
+mary of the hybrid scheme for training a quantum autoencoder
+is shown in Figure 4.
+Figure 6. Potential energy surface for the hydrogen molecule using
+a STO-6G basis set. The ground states at the red dots where used as
+training set for the quantum autoencoder. The ground states at the
+blue dots were used for testing.
+IV . APPLICATION TO QUANTUM SIMULATION
+Consider a set of states, {|ψi⟩}, with support on a subset
+of a Hilbert space S ⊂ H. Using a quantum autoencoder,
+we could ﬁnd an encoding scheme that employs only log2|S|
+qubits to represent the states instead of log2|H|, with a trash
+state of size log2|H−S| . This idea is graphically depicted in
+Figure 5. This situation is usually encountered for eigenstates
+of many-body systems due to special symmetries.
+Fermionic wavefunctions, for instance, are eigenfunctions
+of the particle number operator, same as the fermionic state
+vectors. Consequently, an eigenstate of a system withη parti-
+cles is spanned exclusively by the subspace of fermionic state
+vectors with the same number of particles [28], that has size(N
+η
+)
+withN the number of fermionic modes. This result has
+direct implications for the design of quantum algorithms for
+simulation, suggesting that the number of qubits required to
+store fermionic wavefunctions could be reduced up tolog
+(N
+η
+)
+if an appropriate mapping can be found. The same situation
+is encountered for the spin projection operator, thus reducing
+the size of the subspace spanning a speciﬁc fermionic wave-
+function even further.
+Generally, the number of particles of the system is part of
+the input when ﬁnding eigenstates of many-body systems. In
+quantum chemistry simulations, the spin projection of the tar-
+get state is also known. Many classical algorithms for simu-
+lating quantum systems take advantage of these constraints to
+reduce their computational cost [28]. However, the standard
+transformations employed to map fermionic systems to qubits,
+namely the Bravyi-Kitaev (BK) and the Jordan-Wigner (JW)
+mappings [29, 30], do not exploit these symmetries and thus
+employ more qubits than formally needed.
+In this scenario, a quantum autoencoder could be trained
+to compress fermionic wavefunctions obtained using a quan-
+tum simulation algorithm that has been run using the standard
+transformations. The compression schemes obtained through
+this procedure could be employed to reduce the use of quan-
+5
+tum memory, if the wavefunction needs to be stored. It also
+could save quantum resources for the simulation of systems
+with similar symmetries. To illustrate this idea, we simulated
+a quantum autoencoder applied to molecular wavefunctions.
+Within the Born-Oppenheimer approximation, the non-
+relativistic molecular Hamiltonian can be written as
+H =hnuc +
+∑
+pq
+hpqa†
+paq + 1
+2
+∑
+pqrs
+hpqrsa†
+pa†
+qaras (8)
+wherehnuc corresponds to the classical electrostatic repulsion
+between nuclei, and the constantshpq andhpqrs correspond to
+the one- and two-electron integrals (see Appendix A). The
+operators a†
+p and ap creates and annihilates an electron in
+the spin-orbital p. After applying either the JW or the BK
+transformation, the molecular Hamiltonian can be expressed
+asH = ∑M
+i ciHi, with M scaling as O(N 4). In this case,
+the operators Hi correspond to tensor products of Pauli ma-
+trices and the real coefﬁcientci are linear combinations of the
+one- and two-electron integrals. For a ﬁxed set of nuclei and a
+given number of electrons, the molecular integrals as well as
+the coefﬁcients ci are functions of the internal coordinates of
+the molecule, ⃗R.
+For instance, consider the Hamiltonian of molecular hydro-
+gen in the STO-6G minimal basis set [28]. Using the JW
+transformation, the corresponding Hamiltonian acting on four
+qubits adopts the generic form [29]:
+H =c0I +c1(Z0 +Z1) +c2(Z2 +Z3) +c3Z0Z1+
+c4(Z0Z2 +Z1Z3) +c5(Z1Z2 +Z0Z3) +c6Z2Z3
++c7(Y0X1X2Y3−X0X1Y2Y3−Y0Y1X2X3 +X0Y1Y2X3)
+(9)
+In this case, the coefﬁcients ci are a function of the inter-
+nuclear distance, r. By solving the Schr ¨odinger equation for
+the Hamiltonians at different values of r, we can obtain the
+ground state energy for molecular hydrogen and construct the
+potential energy surface (PES) shown in Figure 6. We expect
+that the ground state wavefunctions along the PES conserve
+the same number of particles and projection spin symmetries,
+turning this set of states into an excellent target for compres-
+sion.
+To illustrate the previous idea, we classically simulated a
+quantum autoencoder taking six ground states of the hydro-
+gen molecule at different values of r,{|Ψ(ri)⟩}6
+i=1, as our
+training set. In this case, the weights of the states are chosen
+to be all equal. In real applications, we can imagine that the
+ground states are obtained using a quantum algorithm such as
+the quantum variational eigensolver [21]. We trained the cir-
+cuit model described in Figure 3 to compress the training set
+of four-qubit states to two qubits and to one qubit, using|0⟩⊗2
+and|0⟩⊗3 as reference states, respectively. Once the circuits
+were trained we tested them on 44 ground states correspond-
+ing to values ofr different from those of the training set. This
+selection of the training and testing sets is shown in Figure 6.
+The classical simulation was performed using a Python
+script supplemented with the QuTiP library [31, 32]. To sim-
+ulate general two-qubit gates we employed the decomposition
+described in Ref.[16]. Arbitrary single-qubit rotations were
+Table I. Average ﬁdelity (F) error after one cycle of compression and
+decompression using the quantum autoencoder trained from ground
+states of the Hydrogen molecule. We also report the error in the
+energy of the decoded state. (Maximum and minimum errors shown
+within parenthesis). 6 states were used for training and 44 more were
+used for testing. These results were obtained with the L-BFGS-B
+optimization.
+Circuit Final size
+(# qubits)
+Set − log10(1−F )
+MAE
+-log10 Energy
+MAE
+(Hartrees)
+Model 2 Training 6.96(6.82-7.17) 6.64(6.27-7.06)
+A 2 Testing 6.99(6.81-7.21) 6.76(6.18-7.10)
+1 Training 6.92(6.80-7.07) 6.60(6.23-7.05)
+1 Testing 6.96(6.77-7.08) 6.72(6.15-7.05)
+Model 2 Training 6.11(5.94-6.21) 6.00(5.78-6.21)
+B 2 Testing 6.07(5.91-6.21) 6.03(5.70-6.21)
+1 Training 3.95(3.53-5.24) 3.74(3.38-4.57)
+1 Testing 3.81(3.50-5.38) 3.62(3.35-4.65)
+∗ MAE: Mean Absolute Error. Log chemical accuracy in Hartrees ≈-2.80
+Figure 7. A plot of the cost function versus the number of cost func-
+tion evaluations during the training process. This example corre-
+sponds to a quantum autoencoder for compression of wavefunction
+of H 2 from 4 to 2 qubits using circuit A with a training set of six
+ground states. We compared the L-BFGS-B and the Basin-Hopping
+algorithms for optimization.
+implemented by decomposing them into Pauli-Z and Pauli-Y
+rotations,R =Rz(θ1)Ry(θ2)Rz(θ3), ignoring global phases
+[18]. The optimization was performed using the SciPy im-
+plementation of the Basin-Hopping (BS) algorithm [33]. We
+also employed the L-BFGS-B method [34] with a numeri-
+cal gradient (central ﬁnite difference formula with step size
+h = 10−8). In the optimization of both circuit models, the pa-
+rameters were constrained to the range [0, 4π). The optimiza-
+tion of each circuit was initialized by setting the parameters to
+randomly selected values.
+Table I shows the average error in the ﬁdelities and the en-
+ergies obtained after a cycle of compression and decompres-
+sion through the optimal quantum autoencoder. We observe
+that both circuit models are able to achieve high ﬁdelities for
+6
+the encoding, producing decoded wavefunctions with energies
+that are close to the original values within chemical accuracy
+(1kcal/mol≡ 1.6× 10−3 Hartrees ≡ 43.4 meV). This accu-
+racy requirement assures that quantum chemistry predictions
+have enough quality to be used for the estimation of thermo-
+chemical properties such as reaction rates [35].
+Figure 7 illustrates the optimization process of a quan-
+tum autoencoder. We compared two different optimization
+algorithms, L-BFGS-B and Basin-Hopping. The parameters
+were initialized at random and the same guess was employed
+for both optimizations. As observed in Figure 7, both algo-
+rithms required a similar number of cost function evaluations
+to achieve similar precision and exhibit a monotonic reduction
+of the difference between the cost function and its ideal value
+with the number of function evaluations. The implementation
+of the quantum autoencoder in state of the art architectures
+can beneﬁt from the use of algorithms that do not require gra-
+dient evaluations and have a larger tolerance to the presence
+of noise in the hardware, such as Basin-Hopping.
+To gain insight into the compression process, we plotted the
+density matrices of the compressed states and compared them
+with the density matrix of the original state in Figure 8, for
+three different values of r. The sparsity of the original input
+density matrix is due to the symmetry of the Hamiltonian for
+molecular hydrogen, whose eigenvectors have support on only
+2 computational basis states, allowing for a compression up to
+a single qubit. Although the quantum autoencoder achieves
+high ﬁdelity with both types of circuit, the structure of the
+density matrices indicates that the forms of the compressed
+space and therefore the forms of the encoding unitaries differ
+between the two circuit models. As the values ofr change, the
+relation between the features of the input space, here repre-
+sented by the elements of the density matrix, and the features
+of the compressed space become apparent.
+In addition to the example of molecular hydrogen, we tested
+the autoencoder compression scheme with ground states of the
+Hubbard model and the H 4 molecule. We considered half-
+ﬁlled Hubbard models with 2-sites and 4-sites arranged in
+a two-leg ladder (2×1 and 2×2 lattices, respectively). The
+Hamiltonian for these systems is given by
+H =−t
+∑
+<i,j>
+∑
+σ
+a†
+i,θaj,σ +U
+∑
+i
+a†
+i,↑ai,↑a†
+i,↓ai,↓ (10)
+wherea†
+i,θ andai,σ create and annihilate an electron at site i
+with spinσ, respectively. The summation in the ﬁrst term runs
+over all the interacting sites, denoted as <i,j> . We used pe-
+riodic boundary conditions along the horizontal direction and
+open boundary conditions in the vertical direction. As in the
+case of molecular Hamiltonians, Hubbard Hamiltonians can
+be mapped to qubits using either the JW or the BK transfor-
+mation, requiring two qubits per site.
+We trained the two circuits of Figure 3 to compress the
+ground states of the Hubbard Hamiltonians obtained by set-
+tingt to six different values equally spaced between 0.9 and
+1.1, with U = 2.0. The optimization process was repeated
+three times starting at randomly selected values. The same
+procedure was applied to the ground states of the H 4 system
+at six different values of the bond distance d (0.6, 1.4, 2.2,
+Table II. Final error in the cost function (Eq. (7)) obtained after train-
+ing a quantum autoencoder for compression of the ground states of
+two-sites and four-sites Hubbard models and the H 4 molecule along
+a parallel path. Six ground states were used for training each system.
+These results were obtained with the L-BFGS-B optimization.
+Circuit System Compression rate∗
+no→nl
+− log10(1−C2)
+Model Hubbard 4 → 3 7.52
+A 2x1 sites 4 → 2 1.15
+4→ 1 1.13
+Hubbard 8 → 7 2.28
+2x2 sites 8 → 6 1.42
+H4 8→ 7 1.53
+8→ 6 1.6
+Model Hubbard 4 → 3 6.82
+B 2x1 sites 4 → 2 3.92
+4→ 1 4.02
+Hubbard 8 → 7 2.29
+2x2 sites 8 → 6 2.31
+H4 8→ 7 4.33
+8→ 6 1.15
+∗ no and nl stand for the number of qubits in the original register
+and the number of qubits in the latent space, respectively.
+3.0, 3.8 and 4.6 atomic units) for the geometry described in
+Figure 9.
+Table II shows the lowest errors obtained for the compres-
+sion of the Hubbard models and the H 4 system. Errors are
+quantiﬁed as the difference between the ﬁnal value of the cost
+function (Eq. (7)) and the ideal value of 1. Recall that the cost
+function corresponds to the average ﬁdelity over the training
+set. We observe that the ground states of the two-sites Hub-
+bard model can be compressed from 4 to 3 qubits using both
+circuit types. However, only circuit B is able to compress
+these these states from 4 to 2 qubits and 4 to 1 qubits with
+an error below 10−3. The same circuit-type achieves an error
+smaller than 10−4 when compressing the ground states of the
+H4 system from 8 to 7 qubits. In contrast, circuit A is unable
+to obtain errors below 10−3 for H4. In the case of the 4-sites
+Hubbard model, none of the circuit models proposed here was
+able to obtain errors below 10−3.
+The differences between the performances of the two circuit
+models described above exempliﬁes how the ansatz employed
+for the autoencoder unitary impacts the degree of compres-
+sion achievable with the autoencoder model. Compression of
+a particular set of states could be achieved more easily with
+a dedicated ansatz designed for that purpose. One form of
+unitary that can serve as a template to design such dedicated
+ansatzes is given by the expression
+U(⃗ α) =e−i ∑
+iαiHi (11)
+where the real numbersαi are the parameters for optimization
+and the terms Hi are local interactions consisting of tensor
+products of Pauli matrices. The experimental implementation
+7
+r = 0.75 ˚A r = 1.50 ˚A r = 2.50 ˚A
+Input space
+(4 qubits)
+Latent space (A)
+(2 qubits)
+Latent space (B)
+(2 qubits)
+Latent space (A)
+(1 qubit)
+Latent space (B)
+(1 qubit)
+Figure 8. Visualization of the input space and the latent (compressed) spaces for three different testing instances of the H 2 compression,
+corresponding to three different bond distances, r. The input and latent spaces are characterized as the density matrices of the input and
+compressed states. Letters (A) and (B) denote the type of circuit employed to construct the encoding unitary. The size of the register (in
+qubits) appears within parenthesis. Integer labels starting at 1 denote the computational basis states in ascending order from |00··· 0⟩ to
+|11··· 1⟩.
+of Eq. (11) would beneﬁt from the techniques developed for
+quantum simulation algorithms [36].
+Finally, we point out that the maximum rate of lossless
+compression achievable with a quantum autoencoder is pre-
+determined by the size of the subspace spanning the train-
+ing set. Consequently, a given set of states might only ad-
+mit a small or null compression rate. For instance, consider a
+fermionic system with 8 fermionic modes and 4 particles, such
+as a half-ﬁlled 4-sites Hubbard model or the H 4 molecule in
+a minimal basis set studied here. Based solely on the con-
+8
+Figure 9. H4 molecule in a parallel conﬁguration, with the hydrogen
+atoms forming a rectangle. We obtained the ground states of this
+system at different values of d, with the bond distance in the two
+hydrogen molecules ﬁxed to 2 atomic units (a.u.).
+strain in the number of particles, these 8-qubits systems could
+be compressed to log2
+(8
+4
+)
+≈ 7 qubits. Compression beyond
+this point could be achieved if an extra symmetry constraint
+is present. In general, we expect fermionic systems where the
+number of fermionic modes is considerably larger than the
+number of particles to be good candidates for compression.
+V . DISCUSSION
+We have introduced a general model for a quantum autoen-
+coder – a quantum circuit augmented with learning via classi-
+cal optimization – and have shown that it is capable of learn-
+ing a unitary circuit which can facilitate compression of quan-
+tum data, particularly in the context of quantum simulations.
+We imagine that the model can have other applications, such
+as compression protocols for quantum communication, error-
+correcting circuits, or perhaps to solve particular problems di-
+rectly. A natural application for quantum autoencoders is state
+preparation. Once a quantum autoencoder has been trained to
+compress a speciﬁc set of states, the decompression unitary
+(U†) can be used to generate states similar to those originally
+used for training. This is achieved by preparing a state of the
+form|ΨI⟩⊗| a⟩ and evolving it underU†, where|ΨI⟩ has the
+size of the latent space and|a⟩ is the reference state used for
+training.
+Autoencoders as state preparation tools have direct applica-
+tion in the context of quantum variational algorithms [21–24].
+These algorithms approximate the energy or the time evolu-
+tion of an eigenstate by performing measurements on a quan-
+tum state prepared according to a parameterized ansatz. A
+quantum autoencoder could be trained with states of size no
+qubits, obtained from a given ansatz, and later be used as a
+state preparation tool as described above. Because the au-
+toencoder parameters are ﬁxed after training, the only active
+parameters in the variational algorithm would be those asso-
+ciated to the preparation of a state in the latent space ( nl).
+Sincenl <n o, the state preparation with autoencoders would
+require fewer parameters than the original ansatz.
+In our speciﬁcation of the autoencoder, we deﬁne the input
+states to be an ensemble of pure states, and the evolution of
+those states to be unitary. The most generalized picture of the
+autoencoder, however, would allow for inputs to be ensem-
+bles of mixed states and the set {U⃗ p} to be a set of quantum
+channels. In the case of mixed state inputs, we remark that
+this formulation can in principle be captured by our model al-
+ready. More speciﬁcally, one can consider the case where a
+set of ancillas (denoted A′) representing a puriﬁcation of the
+mixed state is input into the autoencoder along with the origi-
+nal input. Ulhmann’s theorem [8] guarantees that there exists
+a puriﬁcation whose ﬁdelity is identical to that of the mixed
+state generated from tracing out the puriﬁcation; namely, it is
+a maximum over a unitary V acting on the puriﬁcation alone
+(although ﬁnding this unitary can be a difﬁcult computational
+problem itself). Consider then the encodingU⃗ p
+AB⊗VA′, where
+the original latent space is expanded to contain all of A′ (i.e.
+none of the ancilla qubits are traced out). This puriﬁed sys-
+tem will recover the behavior of the mixed system. The au-
+toencoder structure as deﬁned here cannot completely capture
+the structure for general quantum channels, though we expect
+other computational tasks may be solved by considering spe-
+ciﬁc channel instances.
+Are there any obvious limitations to the quantum autoen-
+coder model? One consideration is that the von-Neumann en-
+tropy [8] of the density operator representing the ensemble
+{pi,|ψi⟩AB} limits the number of qubits to which it can be
+noiselessly compressed. However, ﬁnding the entropy of this
+density operator is not trivial – in fact, given a circuit that con-
+structs a density operator ρ, it is known that, in general, even
+estimating the entropy ofρ is QSZK-complete [37]. This then
+opens the possibility for quantum autoencoders to efﬁciently
+give some estimate of the entropy of a density operator. In a
+similar vein, the unitary of the autoencoder could be deﬁned to
+include the action of a quantum channel, and the autoencoder
+used to give both an encoding for and some lower bound for
+the capacity of a quantum communication channel (although
+the trash state may no longer be useful for training the autoen-
+coder in some of these cases).
+It is natural to consider whether the quantum autoencoder
+structure we have deﬁned is actually a generalization of its
+classical counterpart, as in the construction of [7]. It may cer-
+tainly be possible that some particular family of unitaries, to-
+gether with certain choices for n and k, can be constructed
+so that a mapping exists. However, it is unclear that such a
+correspondence would even be desirable. Rather, we believe
+the value of autoencoders in general lies in the relatively sim-
+ple structure of forcing a network to preserve information in a
+smaller subspace, as we have deﬁned here.
+Another topic of interest for any quantum computing model
+is the computational complexity exhibited by the device. For
+our construction, it is clear that any complexity result would
+be dependent upon the family of unitaries that is chosen for the
+learning to be optimized over. As the training itself is based
+on classical optimization algorithms (with no clear ‘optimal’
+learning method), this further obfuscates general statements
+regarding the complexity of the model.
+ACKNOWLEDGEMENTS
+The authors would like to thank Yudong Cao, Peter John-
+son, Ian Kivlichan, Nicolas Sawaya, Libor Veis, and Dominic
+9
+Berry for very insightful discussions and suggestions. JR and
+AAG acknowledge the Air Force Ofﬁce of Scientiﬁc Research
+for support under Award: FA9550-12-1-0046. AA-G and JO
+acknowledge support from the Vannevar Bush Faculty Fel-
+lowship program sponsored by the Basic Research Ofﬁce of
+the Assistant Secretary of Defense for Research and Engineer-
+ing and funded by the Ofﬁce of Naval Research through grant
+N00014-16-1-2008. AA-G acknowledges the Army Research
+Ofﬁce under Award: W911NF-15-1-0256. The authors thank
+the Harvard Odyssey cluster facility where the numerical sim-
+ulations presented in this work were carried out.
+Appendix A: Molecular integrals
+Using atomic units, where the electron mass me, the elec-
+tron charge e, Bohr radius a0, Coulomb’s constant and ℏ are
+unity, we can write the nuclear repulsion, hnuc, and one-
+electron and two-electron integrals,hpq andhpqrs, as
+hpq =
+∫
+dσϕ∗
+p(σ)
+(
+−∇2
+⃗ r
+2 −
+∑
+i
+Zi
+|⃗Ri−⃗ r|
+)
+ϕq(σ) (A1)
+hpqrs =
+∫
+dσ1dσ2
+ϕ∗
+p(σ1)ϕ∗
+q(σ2)ϕs(σ1)ϕr(σ2)
+|⃗ r1−⃗ r2| (A2)
+hnuc = 1
+2
+∑
+i̸=j
+ZiZj
+|⃗Ri− ⃗Rj|
+(A3)
+WhereZi represents the nuclear charge,⃗ rand ⃗R denote elec-
+tronic and nuclear spatial coordinates, respectively, and σ is
+now a spatial and spin coordinate with σi = (⃗ ri;si). Sum-
+mations run over all nuclei. ϕ(σ) represent the spin-orbitals
+(one-electron functions), that are generally obtained from a
+self-consistent ﬁeld (SCF) Hartree-Fock (HF) calculation.
+[1] P. J. J. O’Malley, R. Babbush, I. D. Kivlichan, J. Romero, J. R.
+McClean, R. Barends, J. Kelly, P. Roushan, A. Tranter, N. Ding,
+et al., Phys. Rev. X 6, 031007 (2016).
+[2] A. Aspuru-Guzik, A. D. Dutoi, P. J. Love, and M. Head-
+Gordon, Science 309, 1704 (2005).
+[3] C.-Y . Liou, J.-C. Huang, and W.-C. Yang, Neurocomputing71,
+3150 (2008).
+[4] C.-Y . Liou, W.-C. Cheng, J.-W. Liou, and D.-R. Liou, Neuro-
+computing 139, 84 (2014).
+[5] J. Biamonte, P. Wittek, N. Pancotti, P. Rebentrost, N. Wiebe,
+and S. Lloyd, arXiv preprint quant-ph/1611.09347 (2016).
+[6] R. G ´omez-Bombarelli, D. Duvenaud, J. M. Hern´andez-Lobato,
+J. Aguilera-Iparraguirre, T. D. Hirzel, R. P. Adams, and
+A. Aspuru-Guzik, arXiv preprint cs.LG/1610.02415 (2016).
+[7] K. H. Wan, O. Dahlsten, H. Kristj ´ansson, R. Gardner, and
+M. Kim, arXiv preprint cs.AI/1612.00104 (2016).
+[8] M. M. Wilde, Quantum Information Theory (Cambridge Uni-
+versity Press, 2012).
+[9] V . Shende, S. Bullock, and I. Markov, IEEE Transactions on
+Computer-Aided Design of Integrated Circuits and Systems25,
+1000 (2006).
+[10] N. Datta, J. M. Renes, R. Renner, and M. M. Wilde, IEEE
+Transactions on Information Theory 59, 8057 (2013).
+[11] F. Dupuis, M. Berta, J. Wullschleger, and R. Renner, Commun.
+Math. Phys. 328, 251284 (2014).
+[12] P. B. Sousa and R. V . Ramos, arXiv preprint quant-ph/0602174
+(2006).
+[13] A. Daskin, A. Grama, G. Kollias, and S. Kais, J. Chem. Phys
+137, 234112 (2012).
+[14] R. Barends, J. Kelly, A. Megrant, A. Veitia, D. Sank, E. Jeffrey,
+T. C. White, J. Mutus, A. G. Fowler, Y . Campbell Chen, et al.,
+Nature 508, 500 (2014).
+[15] B. Kraus and J. Cirac, Phys. Rev. A 63, 062309 (2001).
+[16] D. Hanneke, J. Home, J. Jost, J. Amini, D. Leibfried, and
+D. Wineland, Nat. Phys. 6, 13 (2010).
+[17] M. Veldhorst, C. Yang, J. Hwang, W. Huang, J. Dehollain,
+J. Muhonen, S. Simmons, A. Laucht, F. Hudson, K. M. Itoh,
+et al., Nature 526, 410 (2015).
+[18] M. A. Nielsen and I. L. Chuang, Quantum Computation and
+Quantum Information (Cambridge University Press, 2010).
+[19] S. Gammelmark and K. Mølmer, New. J. Phys 11, 033017
+(2009).
+[20] J. Bang, J. Ryu, S. Yoo, M. Pawłowski, and J. Lee, New. J. Phys
+16, 073017 (2014).
+[21] A. Peruzzo, J. McClean, P. Shadbolt, M.-H. Yung, X.-Q. Zhou,
+P. J. Love, A. Aspuru-Guzik, and J. L. O’Brien, Nat. Commun.
+5, 4213 (2014).
+[22] J. R. McClean, J. Romero, R. Babbush, and A. Aspuru-Guzik,
+New. J. Phys 18, 023023 (2016).
+[23] D. Wecker, M. B. Hastings, and M. Troyer, Phys. Rev. A 92,
+042303 (2015).
+[24] Y . Li and S. C. Benjamin, arXiv preprint quant-ph/1611.09301
+(2016).
+[25] R. Santagati, J. Wang, A. Gentile, S. Paesani, N. Wiebe, J. Mc-
+Clean, S. Short, P. Shadbolt, D. Bonneau, J. Silverstone, et al.,
+arXiv preprint quant-ph/1611.03511 (2016).
+[26] H. Buhrman, R. Cleve, J. Watrous, and R. De Wolf, Phys. Rev.
+Lett. 87, 167902 (2001).
+[27] C. M. Bishop, Pattern Recognition and Machine Learning (In-
+formation Science and Statistics) (Springer-Verlag New York,
+Inc., Secaucus, NJ, USA, 2006), ISBN 0387310738.
+[28] T. Helgaker, J. Olsen, and P. Jorgensen, Molecular Electronic
+Structure Theory (Wiley, 2013).
+[29] J. T. Seeley, M. J. Richard, and P. J. Love, J. Chem. Phys. 137,
+224109 (2012).
+[30] A. Tranter, S. Soﬁa, J. Seeley, M. Kaicher, J. McClean, R. Bab-
+bush, P. V . Coveney, F. Mintert, F. Wilhelm, and P. J. Love,
+International Journal of Quantum Chemistry 115, 1431 (2015).
+[31] J. Johansson, P. Nation, and F. Nori, Comput. Phys. Commun
+183, 1760 (2012).
+10
+[32] J. Johansson, P. Nation, and F. Nori, Comput. Phys. Commun
+184, 1234 (2013).
+[33] D. J. Wales and J. P. Doye, J. Phys. Chem. A 101, 5111 (1997).
+[34] R. H. Byrd, P. Lu, J. Nocedal, and C. Zhu, SIAM. J. Sci. Com-
+put 16, 1190 (1995).
+[35] K. A. Peterson, D. Feller, and D. A. Dixon, Theor. Chem. Acc.
+131, 1 (2012).
+[36] I. Georgescu, S. Ashhab, and F. Nori, Rev. Mod. Phys. 86, 153
+(2014).
+[37] A. Ben-Aroya and A. Ta-Shma, arXiv preprint quant-
+ph/0702129 (2007).

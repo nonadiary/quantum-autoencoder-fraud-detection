@@ -1,0 +1,4827 @@
+Cost Function Dependent Barren Plateaus in Shallow Parametrized Quantum Circuits
+M. Cerezo,1, 2,∗ Akira Sone,1, 2 Tyler Volkoﬀ,1 Lukasz Cincio,1 and Patrick J. Coles1,∗
+1Theoretical Division, Los Alamos National Laboratory, Los Alamos, NM, USA.
+2Center for Nonlinear Studies, Los Alamos National Laboratory, Los Alamos, NM, USA
+Variational quantum algorithms (VQAs) optimize the parametersθ of a parametrized quantum
+circuit V (θ) to minimize a cost function C. While VQAs may enable practical applications of
+noisy quantum computers, they are nevertheless heuristic methods with unproven scaling. Here,
+we rigorously prove two results, assumingV (θ) is an alternating layered ansatz composed of blocks
+forming local 2-designs. Our ﬁrst result states that deﬁningC in terms of global observables leads to
+exponentially vanishing gradients (i.e., barren plateaus) even whenV (θ) is shallow. Hence, several
+VQAs in the literature must revise their proposed costs. On the other hand, our second result states
+that deﬁningC with local observables leads to at worst a polynomially vanishing gradient, so long as
+the depth ofV (θ) isO(logn). Our results establish a connection between locality and trainability.
+We illustrate these ideas with large-scale simulations, up to 100 qubits, of a quantum autoencoder
+implementation.
+INTRODUCTION
+One of the most important technological questions
+is whether Noisy Intermediate-Scale Quantum (NISQ)
+computers will have practical applications [1]. NISQ de-
+vices are limited both in qubit count and in gate ﬁdelity,
+hence preventing the use of quantum error correction.
+The leading strategy to make use of these devices are
+variational quantum algorithms (VQAs) [2]. VQAs em-
+ploy a quantum computer to eﬃciently evaluate a cost
+function C, while a classical optimizer trains the pa-
+rameters θ of a Parametrized Quantum Circuit (PQC)
+V (θ). The beneﬁts of VQAs are three-fold. First, VQAs
+allow for task-oriented programming of quantum com-
+puters, which is important since designing quantum al-
+gorithms is non-intuitive. Second, VQAs make up for
+small qubit counts by leveraging classical computational
+power. Third, pushing complexity onto classical comput-
+ers, while only running short-depth quantum circuits, is
+aneﬀectivestrategyforerrormitigationonNISQdevices.
+There are very few rigorous scaling results for VQAs
+(with exception of one-layer approximate optimiza-
+tion [3–5]). Ideally, in order to reduce gate overhead
+that arises when implementing on quantum hardware one
+would like to employ a hardware-eﬃcient ansatz [6] for
+V (θ). As recent large-scale implementations for chem-
+istry [7] and optimization [8] applications have shown,
+this ansatz leads to smaller errors due to hardware noise.
+However, one of the few known scaling results is that
+deep versions of randomly initialized hardware-eﬃcient
+ansatzes lead to exponentially vanishing gradients [9].
+Very little is known about the scaling of the gradient
+in such ansatzes for shallow depths, and it would be es-
+pecially useful to have a converse bound that guarantees
+non-exponentially vanishing gradients for certain depths.
+∗ Corresponding authors:
+Marco Cerezo - cerezo@lanl.gov
+Patrick J. Coles - pcoles@lanl.gov
+This motivates our work, where we rigorously investigate
+the gradient scaling of VQAs as a function of the circuit
+depth.
+The other motivation for our work is the recent explo-
+sion in the number of proposed VQAs. The Variational
+Quantum Eigensolver (VQE) is the most famous VQA.
+It aims to prepare the ground state of a given Hamilto-
+nian H =∑
+αcασα, withH expanded as a sum of local
+Pauli operators [10]. In VQE, the cost function is ob-
+viously the energyC =⟨ψ|H|ψ⟩ of the trial state|ψ⟩.
+However, VQAs have been proposed for other applica-
+tions, like quantum data compression [11], quantum error
+correction [12], quantum metrology [13], quantum com-
+piling [14–17], quantum state diagonalization [18, 19],
+quantum simulation [20–23], ﬁdelity estimation [24], un-
+sampling [25], consistent histories [26], and linear sys-
+tems [27–29]. For these applications, the choice ofC is
+less obvious. Put another way, if one reformulates these
+VQAs as ground-state problems (which can be done in
+manycases), thechoiceofHamiltonian H islessintuitive.
+This is because many of these applications are abstract,
+rather than associated with a physical Hamiltonian.
+We remark that polynomially vanishing gradients im-
+ply that the number of shots needed to estimate the gra-
+dient should grow asO(poly(n)). In contrast, exponen-
+tially vanishing gradients (i.e., barren plateaus) imply
+that derivative-based optimization will have exponential
+scaling [30], and this scaling can also apply to derivative-
+free optimization [31]. Assuming a polynomial number
+of shots per optimization step, one will be able to resolve
+against ﬁnite sampling noise and train the parameters if
+the gradients vanish polynomially. Hence, we employ the
+term “trainable” for polynomially vanishing gradients.
+In this work we connect the trainability of VQAs to the
+choice ofC. For the abstract applications in Refs. [11–
+29], it is important forC to be operational, so that small
+values ofC imply that the task is almost accomplished.
+Consider an example of state preparation, where the goal
+is to ﬁnd a gate sequence that prepares a target state
+|ψ0⟩. A natural cost function is the square of the trace
+distance DT between|ψ0⟩ and|ψ⟩ =V (θ)†|0⟩, given by
+arXiv:2001.00550v3  [quant-ph]  20 Mar 2021
+2
+FIG. 1. Summary of our main results. McClean et al. [9]
+proved that a barren plateau can occur when the depthD of
+a hardware-eﬃcient ansatz isD∈O (poly(n)). Here we ex-
+tend these results by providing bounds for the variance of the
+gradient of global and local cost functions as a function ofD.
+In particular, we ﬁnd that the barren plateau phenomenon is
+cost-function dependent. a) For global cost functions (e.g.,
+Eq. (1)), the landscape will exhibit a barren plateau essen-
+tially for all depths D. b) For local cost functions (e.g.,
+Eq. (2)), the gradient vanishes at worst polynomially and
+hence is trainable whenD∈O (log(n)), while barren plateaus
+occur forD∈O (poly(n)), and between these two regions the
+gradient transitions from polynomial to exponential decay.
+CG =DT(|ψ0⟩,|ψ⟩)2, which is equivalent to
+CG = Tr[OGV (θ)|ψ0⟩⟨ψ0|V (θ)†], (1)
+with OG = 11−| 0⟩⟨0|. Note that √CG ⩾|⟨ψ|M|ψ⟩−
+⟨ψ0|M|ψ0⟩| has a nice operational meaning as a bound on
+the expectation value diﬀerence for a POVM elementM.
+However, here we argue that this cost function and
+others like it exhibit exponentially vanishing gradients.
+Namely, we consider global cost functions, where one di-
+rectly compares states or operators living in exponen-
+tially large Hilbert spaces (e.g.,|ψ⟩ and|ψ0⟩). These are
+precisely the cost functions that have operational mean-
+ings for tasks of interest, including all tasks in Refs. [11–
+29]. Hence, our results imply that a non-trivial subset of
+these references will need to revise their choice ofC.
+Interestingly, we demonstrate vanishing gradients for
+shallow PQCs. This is in contrast to McCleanet al. [9],
+who showed vanishing gradients for deep PQCs. They
+noted that randomly initializingθ for aV (θ) that forms
+a 2-design leads to a barren plateau, i.e., with the gra-
+dient vanishing exponentially in the number of qubits,
+n. Their work implied that researchers must develop ei-
+ther clever parameter initialization strategies [32, 33] or
+clever PQCs ansatzes [4, 34, 35]. Similarly, our work
+implies that researchers must carefully weigh the bal-
+ance between trainability and operational relevance when
+choosing C.
+While our work is for general VQAs, barren plateaus
+forglobalcostfunctionswerenotedforspeciﬁcVQAsand
+foraveryspeciﬁctensor-productexamplebyourresearch
+group [14, 18], and more recently in [29]. This motivated
+the proposal of local cost functions [14, 16, 18, 22, 25–27],
+where one compares objects (states or operators) with
+respect to each individual qubit, rather than in a global
+sense, and therein it was shown that these local cost func-
+tions have indirect operational meaning.
+Oursecondresultisthattheselocalcostfunctionshave
+gradients that vanish polynomially rather than exponen-
+tially inn, and hence have the potential to be trained.
+This holds forV (θ) with depthO(logn). Figure 1 sum-
+marizes our two main results.
+Finally, we illustrate our main results for an important
+example: quantum autoencoders [11]. Our large-scale
+numerics show that the global cost function proposed in
+[11] has a barren plateau. On the other hand, we propose
+a novel local cost function that is trainable, hence making
+quantum autoencoders a scalable application.
+RESUL TS
+W arm-up example
+To illustrate cost-function-dependent barren plateaus,
+we ﬁrst consider a toy problem corresponding to the state
+preparation problem in the Introduction with the target
+statebeing|0⟩. Weassumeatensor-productansatzofthe
+form V (θ) = ⨂n
+j=1e−iθjσ(j)
+x /2, with the goal of ﬁnding
+the angles θj such thatV (θ)|0⟩ =|0⟩. Employing the
+global cost of (1) results inCG = 1−∏n
+j=1 cos2 θj
+2 . The
+barren plateau can be detected via the variance of its
+gradient: Var[∂CG
+∂θj ] = 1
+8( 3
+8)n−1, which is exponentially
+vanishing inn. Since the mean value is⟨∂CG
+∂θj⟩ = 0, the
+gradient concentrates exponentially around zero.
+On the other hand, consider a local cost function:
+CL = Tr
+[
+OLV (θ)|0⟩⟨0|V (θ)†]
+, (2)
+with OL = 11− 1
+n
+n∑
+j=1
+|0⟩⟨0|j⊗11j, (3)
+where 11j is the identity on all qubits except qubit j.
+Note that CL vanishes under the same conditions as
+CG [14, 16], CL = 0 ⇔ CG = 0 . We ﬁnd CL =
+1− 1
+n
+∑n
+j=1 cos2 θj
+2 , and the variance of its gradient is
+Var[∂CL
+∂θj ] = 1
+8n2, which vanishes polynomially withn and
+3
+FIG. 2. Cost function landscapes. a) Two-dimensional cross-
+section through the landscape ofCG = 1−∏n
+j=1 cos2(θj/2)for
+n = 4 (blue) andn = 24 (orange). b) The same cross-section
+through the landscape ofCL = 1− 1
+n
+∑n
+j=1 cos2(θj/2) is in-
+dependent ofn. In both cases, 200 Haar distributed points
+are shown, with very few (most) of these points lying in the
+valley containing the global minimum ofCG (CL).
+hence exhibits no barren plateau. Figure 2 depicts the
+cost landscapes of CG and CL for two values ofn and
+shows that the barren plateau can be avoided here via a
+local cost function.
+Moreover, this example allows us to delve deeper into
+the cost landscape to see a phenomenon that we refer to
+as a narrow gorge. While a barren plateau is associated
+with a ﬂat landscape, a narrow gorge refers to the steep-
+ness of the valley that contains the global minimum. This
+phenomenon is illustrated in Fig. 2, where each dot cor-
+responds to cost values obtained from randomly selected
+parametersθ. ForCG we see that very few dots fall in-
+side the narrow gorge, while forCL the narrow gorge is
+not present. Note that the narrow gorge makes it harder
+to trainCG since the learning rate of descent-based opti-
+mization algorithms must be exponentially small in order
+not to overstep the narrow gorge. The following propo-
+sition (proved in the Supplementary Note 2) formalizes
+the narrow gorge forCG and its absence forCL by char-
+acterizing the dependence onn of the probabilityC ⩽δ.
+This probability is associated with the parameter space
+volume that leads toC ⩽δ.
+Proposition 1. Letθj be uniformly distributed on[−π,π ]
+∀j. For any δ ∈ (0, 1), the probability that CG ≤ δ
+satisﬁes
+Pr{CG≤δ}≤ (1−δ)−1
+(1
+2
+)n
+. (4)
+For anyδ∈ [ 1
+2, 1], the probability thatCL≤δ satisﬁes
+Pr{CL≤δ}≥ (2δ− 1)2
+1
+2n + (2δ− 1)2 −→
+n→∞
+1. (5)
+General framework
+For our general results, we consider a family of cost
+functions that can be expressed as the expectation value
+of an operatorO as follows
+C = Tr
+[
+OV (θ)ρV†(θ)
+]
+, (6)
+whereρ is an arbitrary quantum state onn qubits. Note
+that this framework includes the special case where ρ
+could be a pure state, as well as the more special case
+whereρ =|0⟩⟨0|, which is the input state for many VQAs
+such as VQE. Moreover, in VQE, one choosesO = H,
+where H is the physical Hamiltonian. In general, the
+choice ofO and ρ essentially deﬁnes the application of
+interest of the particular VQA.
+It is typical to expressO as a linear combination of
+the form O = c011 +∑N
+i=1ciOi. Here Oi ̸= 11, ci ∈
+R, and we assume that at least oneci̸= 0. Note that
+CG and CL in (1) and (2) fall under this framework. In
+our main results below, we will consider two diﬀerent
+choices ofO that respectively capture our general notions
+of global and local cost functions and also generalize the
+aforementionedCG and CL.
+As shown in Fig. 3(a),V (θ) consists ofL layers ofm-
+qubit unitariesWkl(θkl), or blocks, acting on alternating
+groups ofm neighboring qubits. We refer to this as an
+Alternating Layered Ansatz. We remark that the Alter-
+nating Layered Ansatz will be a hardware-eﬃcient ansatz
+so long as the gates that compose each block are taken
+from a set of gates native to a speciﬁc device. As de-
+picted in Fig. 3(c), the one dimensional Alternating Lay-
+ered Ansatz can be readily implemented in devices with
+one-dimensional connectivity, as well as in devices with
+two-dimensional connectivity (such as that of IBM’s [36]
+and Google’s [37] quantum devices). That is, with both
+one- and two-dimensional hardware connectivity one can
+group qubits to form an Alternating Layered Ansatz as
+in Fig. 3(a).
+The indexl = 1,...,L in Wkl(θkl) indicates the layer
+that contains the block, whilek = 1,...,ξ indicates the
+qubits it acts upon. We assumen is a multiple ofm, with
+n =mξ, and thatm does not scale withn. As depicted
+in Fig. 3(a), we deﬁneSk as them-qubit subsystem on
+whichWkL acts, and we deﬁneS ={Sk} as the set of all
+such subsystems. Let us now consider a blockWkl(θkl)in
+thel-th layer of the ansatz. For simplicity we henceforth
+use W to refer to a givenWkl(θkl). As shown in the
+Methods section, given aθν ∈ θkl that parametrizes a
+rotation e−iθνσν/2 (with σν a Pauli operator) inside a
+given blockW, one can always express
+∂W
+∂θν :=∂νW =−i
+2 WAσνWB, (7)
+whereWA andWB contain all remaining gates inW, and
+are properly deﬁned in the Methods section.
+The contribution to the gradient∇C from a parame-
+ter θν in the blockW is given by the partial derivative
+∂νC. While the value of∂νC depends on the speciﬁc pa-
+rametersθ, it is useful to compute⟨∂νC⟩V, i.e., the av-
+erage gradient over all possible unitariesV (θ) within the
+ansatz. Such an average may not be representative near
+4
+FIG. 3. Alternating Layered Ansatz. a) Each blockWkl acts
+onmqubitsandisparametrizedvia(27). Asshown, wedeﬁne
+Sk as the m-qubit subsystem on whichWkL acts, where L
+is the last layer ofV (θ). Given some block W, it is useful
+for our proofs (outlined in the Methods) to write V (θ) =
+VR(11w⊗W )VL, where VR contains all gates in the forward
+light-coneL of W. The forward light-coneL is deﬁned as all
+gates with at least one input qubit causally connected to the
+output qubits ofW. We deﬁneL as the compliment ofL,
+Sw as the m-qubit subsystem on whichW acts, and Sw as
+then−m qubit subsystem on whichW acts trivially. b) The
+operator Oi acts non-trivially only in subsystemSk−1∈S ,
+while Oi′ acts non-trivially on the ﬁrstm/2 qubits ofSk+1,
+and on the second m/2 qubits of Sk. c) Depiction of the
+Alternating Layered Ansatz with one- and two-dimensional
+connectivity. Each circle represents a physical qubit.
+the minimum ofC, although it does provide a good esti-
+mate of the expected gradient when randomly initializing
+the angles inV (θ). In the Methods Section we explicitly
+show how to compute averages of the form⟨... ⟩V, and
+in the Supplementary Note 3 we provide a proof for the
+following Proposition.
+Proposition 2. The average of the partial derivative of
+any cost function of the form (6) with respect to a pa-
+rameter θν in a blockW of the ansatz in Fig. 3 is
+⟨∂νC⟩V = 0, (8)
+provided that eitherWA or WB of (7) form a 1-design.
+Here we recall that at-design is an ensemble of uni-
+taries, such that sampling over their distribution yields
+the same properties as sampling random unitaries from
+the unitary group with respect to the Haar measure up to
+the ﬁrstt moments [38]. The Methods section provides
+a formal deﬁnition of at-design.
+Proposition 2 states that the gradient is not biased in
+any particular direction. To analyze the trainability ofC,
+we consider the second moment of its partial derivatives:
+Var[∂νC] =
+⣨
+(∂νC)2
+⟩
+V
+, (9)
+where we used the fact that⟨∂νC⟩V = 0. The magnitude
+of Var[∂νC] quantiﬁes how much the partial derivative
+concentrates around zero, and hence small values in (9)
+imply that the slope of the landscape will typically be in-
+suﬃcient to provide a cost-minimizing direction. Speciﬁ-
+cally, from Chebyshev’s inequality,Var[∂νC] bounds the
+probability that the cost-function partial derivative de-
+viates from its mean value (of zero) asPr (|∂νC| ⩾c) ⩽
+Var[∂νC]/c2 for allc> 0.
+Main results
+Here we present our main theorems and corollaries,
+with the proofs sketched in the Methods and detailed
+in the Supplementary Information. In addition, in the
+Methods section we provide some intuition behind our
+main results by analyzing a generalization of the warm-
+up example whereV (θ) is composed of a single layer of
+the ansatz in Fig. 3. This case bridges the gap between
+the warm-up example and our main theorems and also
+showcases the tools used to derive our main result.
+The following theorem provides an upper bound on the
+variance of the partial derivative of a global cost function
+which can be expressed as the expectation value of an
+operator of the form
+O =c011 +
+N∑
+i=1
+ciˆOi1⊗ ˆOi2⊗···⊗ ˆOiξ. (10)
+Speciﬁcally, we consider two cases of interest: (i) When
+N = 1 and each ˆO1k is a non-trivial projector (ˆO2
+1k =
+ˆO1k̸= 11) of rankrk acting on subsystemSk, or (ii) When
+N is arbitrary and ˆOik is traceless with Tr[ˆO2
+ik] ⩽ 2m
+(for example, whenˆOik =⨂m
+j=1σµ
+j is a tensor product
+of Pauli operators σµ
+j ∈ {11j,σx
+j,σy
+j,σz
+j}, with at least
+one σµ
+j ̸= 11). Note that case (i) includesCG of (1) as a
+special case.
+Theorem 1. Consider a trainable parameterθν in a block
+W of the ansatzin Fig. 3. LetVar[∂νC]be thevariance of
+the partial derivative of a global cost functionC (withO
+given by (10)) with respect toθν. IfWA,WB of (7), and
+each block inV (θ) form a local2-design, then Var[∂νC]
+is upper bounded by
+Var[∂νC] ⩽Fn(L,l ). (11)
+(i) ForN = 1 and when eachˆO1k is a non-trivial pro-
+jector, then deﬁningR =∏ξ
+k=1r2
+k, we have
+Fn(L,l ) = 22m+(2m−1)(L−l)
+(22m− 1)· 3
+n
+m· 2(2− 3
+m )nc2
+1R. (12)
+5
+(ii) For arbitrary N and when each ˆOik satisﬁes
+Tr[ˆOik] = 0 and Tr[ˆO2
+ik] ⩽ 2m, then
+Fn(L,l ) = 22m(L−l+1)+1
+3
+2n
+m· 2(3− 4
+m)n
+N∑
+i,j=1
+cicj. (13)
+From Theorem 1 we derive the following corollary.
+Corollary 1. Consider the functionFn(L,l ).
+(i) LetN = 1 and let eachˆO1k be a non-trivial pro-
+jector, as in case (i) of Theorem 1. Ifc2
+1R∈O (2n)
+and if the number of layersL∈O (poly(log(n))),
+then
+Fn (L,l )∈O
+(
+2−(1− 1
+m log2 3)n
+)
+, (14)
+which implies that Var[∂νC] is exponentially van-
+ishing inn if m ⩾ 2.
+(ii) Let N be arbitrary, and let each ˆOik satisfy
+Tr[ˆOik] = 0 and Tr[ˆO2
+ik] ⩽ 2m, as in case (ii) of
+Theorem 1. If N ∈O (2n), ci∈O (1), and if the
+number of layersL∈O (poly(log(n))), then
+Fn (L,l )∈O
+( 1
+2(1− 1
+m)n
+)
+, (15)
+which implies that Var[∂νC] is exponentially van-
+ishing inn if m ⩾ 2.
+Let us now make several important remarks. First,
+note that part (i) of Corollary 1 includes as a particular
+example the cost functionCG of (1). Second, part (ii) of
+this corollary also includes as particular examples opera-
+tors withN∈O (1), as well asN∈O (poly(n)). Finally,
+weremarkthat Fn(L,l )becomestrivialwhenthenumber
+of layersL is Ω(poly(n)), however, as we discuss below,
+we can still ﬁnd thatVar[∂νCG] vanishes exponentially
+in this case.
+Our second main theorem shows that barren plateaus
+can be avoided for shallow circuits by employing local
+cost functions. Here we considerm-local cost functions
+where eachˆOi acts non-trivially on at mostm qubits and
+(on these qubits) can be expressed asˆOi = ˆOµi
+i ⊗ ˆOµ′
+i
+i :
+O =c011 +
+N∑
+i=1
+ciˆOµi
+i ⊗ ˆOµ′
+i
+i , (16)
+where ˆOµi
+i are operators acting onm/2 qubits which can
+be written as a tensor product of Pauli operators. Here,
+we assume the summation in Eq. (16) includes two pos-
+sible cases as schematically shown in Fig. 3(b): First,
+when ˆOµi
+i (ˆOµ′
+i
+i ) acts on the ﬁrst (last)m/2 qubits of a
+given Sk, and second, whenˆOµi
+i (ˆOµ′
+i
+i ) acts on the last
+(ﬁrst)m/2 qubits of a givenSk (Sk+1). This type of cost
+function includes any ultralocal cost function (i.e., where
+the ˆOi are one-body) as in (2), and also VQE Hamilto-
+nians with up tom/2 neighbor interactions. Then, the
+following theorem holds.
+Theorem 2. Consider a trainable parameterθν in a block
+W of the ansatzin Fig. 3. LetVar[∂νC]be thevariance of
+the partial derivative of anm-local cost functionC (with
+O given by (16)) with respect toθν. WA,WB of (7), and
+each block inV (θ) form a local2-design, then Var[∂νC]
+is lower bounded by
+Gn(L,l ) ⩽ Var[∂νC], (17)
+with
+Gn(L,l ) = 2m(l+1)−1
+(22m− 1)2(2m + 1)L+l
+×
+∑
+i∈iL
+∑
+(k,k′)∈kLB
+k′⩾k
+c2
+iϵ(ρk,k′)ϵ(ˆOi), (18)
+whereiL is the set ofi indices whose associated operators
+ˆOi act on qubits in the forward light-coneL of W, and
+kLB isthesetof k indiceswhoseassociatedsubsystems Sk
+are in the backward light-coneLB ofW. Here we deﬁned
+the functionϵ(M) = DHS (M, Tr(M)11/dM) where DHS
+is the Hilbert-Schmidt distance anddM is the dimension
+of the matrixM. In addition,ρk,k′ is the partial trace of
+the input stateρ down to the subsystemsSkSk+1...Sk′.
+Let us make a few remarks. First, note that theϵ(ˆOi)
+in the lower bound indicates that trainingV (θ) is easier
+when ˆOi is far from the identity. Second, the presence of
+ϵ(ρk,k′) inGn(L,l ) implies that we have no guarantee on
+the trainability of a parameterθν inW ifρ is maximally
+mixed on the qubits in the backwards light-cone.
+From Theorem 2 we derive the following corollary for
+m-local cost functions, which guarantees the trainability
+of the ansatz for shallow circuits.
+Corollary 2. Consider the functionFn(L,l ). LetO be an
+operator of the form (16), as in Theorem 2. If at least
+one termc2
+iϵ(ρk,k′)ϵ(ˆOi) in the sum in (18) vanishes no
+faster than Ω(1/ poly(n)), and if the number of layersL
+isO(log(n)), then
+Gn(L,l )∈ Ω
+( 1
+poly(n)
+)
+. (19)
+On the other hand, if at least one termc2
+iϵ(ρk,k′)ϵ(ˆOi) in
+thesumin(18)vanishesnofasterthan Ω
+(
+1/2poly(log(n)))
+,
+and if the number of layers isO(poly(log(n))), then
+Gn(L,l )∈ Ω
+( 1
+2poly(log(n))
+)
+. (20)
+Hence, whenL isO(poly(log(n))) there is a transition
+region where the lower bound vanishes faster than poly-
+nomially, but slower than exponentially.
+We ﬁnally justify the assumption of each block being
+a local 2-design from the fact that shallow circuit depths
+lead to such local2-designs. Namely, it has been shown
+that one-dimensional 2-designs have eﬃcient quantum
+6
+circuit descriptions, requiring O(m2) gates to be ex-
+actly implemented [38], or O(m) to be approximately
+implemented [39, 40]. Hence, an L-layered ansatz in
+which each block forms a2-design can be exactly imple-
+mented with a depthD∈O (m2L), and approximately
+implemented with D ∈ O(mL). For the case of two-
+dimensional connectivity, it has been shown that approx-
+imate 2-designs require a circuit depth ofO(√m) to be
+implemented [40]. Therefore, in this case the depth of
+the layered ansatz isD∈O (√mL). The latter shows
+that increasing the dimensionality of the circuit reduces
+the circuit depth needed to make each block a2-design.
+Moreover, it has been shown that the Alternating Lay-
+ered Ansatz of Fig. 3 will form an approximate one-
+dimensional 2-design onn qubits if the number of layers
+isO(n) [40]. Hence, for deep circuits, our ansatz behaves
+like a random circuit and we recover the barren plateau
+result of [9] for both local and global cost functions.
+Numerical Simulations
+As an important example to illustrate the cost-
+function-dependent barren plateau phenomenon, we con-
+sider quantum autoencoders [11, 41–44]. In particular,
+the pioneering VQA proposed in Ref. [11] has received
+signiﬁcant literature attention, due to its importance to
+quantum machine learning and quantum data compres-
+sion. Let us brieﬂy explain the algorithm in Ref. [11].
+Consider a bipartite quantum systemAB composed of
+nA and nB qubits, respectively, and let{pµ,|ψµ⟩} be an
+ensemble of pure states onAB. The goal of the quantum
+autoencoder is to train a gate sequenceV (θ) to compress
+this ensemble into theA subsystem, such that one can
+recover each state|ψµ⟩ with high ﬁdelity from the in-
+formation in subsystemA. One can think of B as the
+“trash” since it is discarded after the action ofV (θ).
+To quantify the degree of data compression, Ref. [11]
+proposed a cost function of the form:
+C′
+G = 1− Tr[|0⟩⟨0|ρout
+B ] (21)
+= Tr[O′
+GV (θ)ρin
+ABV (θ)†], (22)
+where ρin
+AB =∑
+µpµ|ψµ⟩⟨ψµ| is the ensemble-average in-
+put state, ρout
+B = ∑
+µpµTrA[|ψ′
+µ⟩⟨ψ′
+µ|] is the ensemble-
+average trash state, and|ψ′
+µ⟩ =V (θ)|ψµ⟩. Equation (22)
+makes it clear thatC′
+G has the form in (6), andO′
+G =
+11AB− 11A⊗| 0⟩⟨0| is a global observable of the form in
+(10). Hence, according to Corollary 1,C′
+G exhibits a bar-
+ren plateau for largenB. (Speciﬁcally, Corollary 1 applies
+in this context whennA < nB). As a result, large-scale
+data compression, where one is interested in discarding
+large numbers of qubits, will not be possible withC′
+G.
+To address this issue, we propose the following local
+FIG. 4. Alternating Layered Ansatz forV (θ) employed in our
+numerical simulations. Each layer is composed of control-Z
+gates acting on alternating pairs of neighboring qubits which
+are preceded and followedbysinglequbit rotationsaround the
+y-axis, Ry(θi) = e−iθiσy/2. Shown is the case of two layers,
+nA = 1, and nB = 10 qubits. The number of variational
+parameters and gates scales linearly withnB: for the case
+shown there are 71 gates and 51 parameters. While each
+block in this ansatz will not form an exact local2-design, and
+hence does not fall under our theorems, one can still obtain a
+cost-function-dependent barren plateau.
+cost function
+C′
+L = 1− 1
+nB
+nB∑
+j=1
+Tr
+[(
+|0⟩⟨0|j⊗11j
+)
+ρout
+B
+]
+(23)
+= Tr[O′
+LV (θ)ρin
+ABV (θ)†], (24)
+where O′
+L = 11AB− 1
+nB
+∑nB
+j=111A⊗| 0⟩⟨0|j⊗11j, and11j is
+the identity on all qubits inB except thej-th qubit. As
+shown in the Supplementary Note 9,C′
+L satisﬁesC′
+L ⩽
+C′
+G ⩽nBC′
+L, which implies thatC′
+L is faithful (vanishing
+under the same conditions asC′
+G). Furthermore, note
+that O′
+L has the form in (16). Hence Corollary 2 implies
+that C′
+L does not exhibit a barren plateau for shallow
+ansatzes.
+Here we simulate the autoencoder algorithm to solve a
+simple problem wherenA = 1, and where the input state
+ensemble{pµ,|ψµ⟩} is given by
+|ψ1⟩ =|0⟩A⊗| 0, 0, 0,..., 0⟩B, with p1 = 2/3, (25)
+|ψ2⟩ =|1⟩A⊗| 1, 1, 0,..., 0⟩B, with p2 = 1/3. (26)
+In order to analyze the cost-function-dependent barren
+plateau phenomenon, the dimension of subsystemB is
+gradually increased asnB = 10, 15,..., 100.
+Numerical results
+In our heuristics, the gate sequenceV (θ) is given by
+two layers of the ansatz in Fig. 4, so that the number of
+gates and parameters inV (θ) increases linearly withnB.
+Note that this ansatz is a simpliﬁed version of the ansatz
+7
+FIG. 5. Cost versus number of iterations for the quantum autoencoder problem deﬁned by Eqs. (25)–(26). In all cases we
+employed two layers of the ansatz shown in Fig. 4, and we setnA = 1, while increasingnB = 10, 15,..., 100. The top (bottom)
+axis corresponds to the global cost functionC′
+G of Eq. (22) (local cost functionC′
+L of (23)). As can be seen,C′
+G can be trained
+up tonB = 20 qubits, whileC′
+L trained in all cases. These results indicate that global cost function presents a barren plateau
+even for a shallow depth ansatz, and this can be avoided by employing a local cost function.
+in Fig. 3, as we can only generate unitaries with real co-
+eﬃcients. All parameters inV (θ) were randomly initial-
+ized and as detailed in the Methods section, we employ a
+gradient-free training algorithm that gradually increases
+the number of shots per cost-function evaluation.
+Analysis of then-dependence. Figure 5 shows repre-
+sentative results of our numerical implementations of the
+quantum autoencoder in Ref. [11] obtained by training
+V (θ) with the global and local cost functions respectively
+given by (22) and (23). Speciﬁcally, while we train with
+ﬁnite sampling, in the ﬁgures we show the exact cost-
+function values versus the number of iterations. Here,
+the top (bottom) axis corresponds to the number of it-
+erations performed while training with C′
+G (C′
+L). For
+nB = 10 and 15, Fig. 5 shows that we are able to train
+V (θ) for both cost functions. For nB = 20, the global
+cost function initially presents a plateau in which the op-
+timizing algorithm is not able to determine a minimizing
+direction. However, as the number of shots per function
+evaluation increases, one can eventually minimize C′
+G.
+Such result indicates the presence of a barren plateau
+where the gradient takes small values which can only be
+detected when the number of shots becomes suﬃciently
+large. In this particular example, one is able to start
+training at around 140 iterations.
+When nB > 20 we are unable to train the global cost
+function, while always being able to train our proposed
+local cost function. Note that the number of iterations is
+diﬀerent forC′
+G and C′
+L, as for the global cost function
+case we reach the maximum number of shots in fewer it-
+erations. These results indicate that the global cost func-
+tion of (22) exhibits a barren plateau where the gradient
+of the cost function vanishes exponentially with the num-
+ber of qubits, and which arises even for constant depth
+ansatzes. We remark that in principle one can always
+ﬁnd a minimizing direction when trainingC′
+G, although
+this would require a number of shots that increases ex-
+ponentially with nB. Moreover, one can see in Fig. 5
+that randomly initializing the parameters always leads
+to C′
+G ≈ 1 due to the narrow gorge phenomenon (see
+Prop. 1), i.e., where the probability of being near the
+global minimum vanishes exponentially withnB.
+On the other hand, Fig. 5 shows that the barren
+plateau is avoided when employing a local cost function
+8
+FIG. 6. Local cost C′
+L versus number of iterations for the
+quantum autoencoder problem in Eqs. (25)–(26) withnB =
+10. Each curve corresponds to a diﬀerent number of layers
+L in the ansatz of Fig. 4 withL = 2,..., 20. Curves were
+averaged over9 instances of the autoencoder. As the number
+of layers increases, the optimization becomes harder. Inset:
+Number of shots needed to reach cost values ofC′
+L = 0.02
+and C′
+L = 0.05 versus number of layersL. As L increases
+the number of shots needed to reach the indicated cost values
+appears to increase exponentially.
+since we can train C′
+L for all considered values ofnB.
+Moreover, as seen in Fig. 5,C′
+L can be trained with a
+small number of shots per cost-function evaluation (as
+small as 10 shots per evaluation).
+Analysis of the L-dependence. The power of Theo-
+rem 2 is that it gives the scaling in terms ofL. While one
+can substitute a function ofn for L as we did in Corol-
+lary 2, one can also directly study the scaling withL
+(for ﬁxedn). Figure 6 shows the dependence onL when
+training C′
+L for the autoencoder example withnA = 1
+andnB = 10. As one can see, the training becomes more
+diﬃcult asL increases. Speciﬁcally, as shown in the in-
+set it appears to become exponentially more diﬃcult, as
+the number of shots needed to achieve a ﬁxed cost value
+grows exponentially withL. This is consistent with (and
+hence veriﬁes) our bound on the variance in Theorem 2,
+which vanishes exponentially inL, although we remark
+that this behavior can saturate for very largeL [9].
+In summary, even though the ansatz employed in our
+heuristics is beyond the scope of our theorems, we still
+ﬁnd cost-function-dependent barren plateaus, indicating
+that the cost-function dependent barren plateau phe-
+nomenon might be more general and go beyond our an-
+alytical results.
+DISCUSSION
+While scaling results have been obtained for classical
+neural networks [45], very few such results exist for the
+trainability of parametrized quantum circuits, and more
+generally for quantum neural networks. Hence, rigor-
+ous scaling results are urgently needed for VQAs, which
+many researchers believe will provide the path to quan-
+tum advantage with near-term quantum computers. One
+of the few such results is the barren plateau theorem
+of Ref. [9], which holds for VQAs with deep, hardware-
+eﬃcient ansatzes.
+In this work, we proved that the barren plateau phe-
+nomenon extends to VQAs with randomly initialized
+shallow Alternating Layered Ansatzes. The key to ex-
+tending this phenomenon to shallow circuits was to con-
+sider the locality of the operatorO that deﬁnes the cost
+function C. Theorem 1 presented a universal upper
+boundonthevarianceofthegradientforglobalcostfunc-
+tions, i.e., whenO isaglobaloperator. Corollary1stated
+the asymptotic scaling of this upper bound for shallow
+ansatzes as being exponentially decaying inn, indicat-
+ing a barren plateau. Conversely, Theorem 2 presented
+a universal lower bound on the variance of the gradient
+for local cost functions, i.e., whenO is a sum of local
+operators. Corollary 2 notes that for shallow ansatzes
+this lower bound decays polynomially inn. Taken to-
+gether, these two results show that barren plateaus are
+cost-function-dependent, and they establish a connection
+between locality and trainability.
+In the context of chemistry or materials science, our
+present work can inform researchers about which trans-
+formation to use when mapping a fermionic Hamiltonian
+to a spin Hamiltonian [46], i.e., Jordan-Wigner versus
+Bravyi-Kitaev [47]. Namely, the Bravyi-Kitaev transfor-
+mation often leads to more local Pauli terms, and hence
+(fromCorollary2)toamoretrainablecostfunction. This
+fact was recently numerically conﬁrmed [48].
+Moreover, the fact that Corollary 2 is valid for arbi-
+trary input quantum states may be useful when con-
+structing variational ansatzes. For example, one could
+propose a growing ansatz method where one appends
+log(n) layers of the hardware-eﬃcient ansatz to a previ-
+ously trained (hence ﬁxed) circuit. This could then lead
+to a layer-by-layer training strategy where the previously
+trained circuit can correspond to multiple layers of the
+same hardware-eﬃcient ansatz.
+We remark that our deﬁnition of a global operator (lo-
+cal operator) is one that is both non-local (local) and
+many body (few body). Therefore, the barren plateau
+phenomenon could be due to the many-bodiness of the
+operator rather than the non-locality of the operator; we
+leave the resolution of this question to future work. On
+the other hand, our Theorem 1 rules out the possibil-
+ity that barren plateaus could be due to cardinality, i.e.,
+the number of terms inO when decomposed as a sum
+of Pauli products [49]. Namely, case (ii) of this theorem
+implies barren plateaus forO of essentially arbitrary car-
+dinality, and hence cardinality is not the key variable at
+work here.
+We illustrated these ideas for two example VQAs. In
+Fig. 2, we considered a simple state-preparation example,
+which allowed us to delve deeper into the cost landscape
+anduncoveranotherphenomenonthatwecalledanarrow
+9
+gorge, stated precisely in Prop. 1. In Fig. 5, we studied
+the more important example of quantum autoencoders,
+which have generated signiﬁcant interest in the quantum
+machine learning community. Our numerics showed the
+eﬀects of barren plateaus: for more than20 qubits we
+were unable to minimize the global cost function intro-
+duced in [11]. To address this, we introduced a local cost
+function for quantum autoencoders, which we were able
+to minimize for system sizes of up to100 qubits.
+There are several directions in which our results could
+be generalized in future work. Naturally, we hope to ex-
+tend the narrow gorge phenomenon in Prop. 1 to more
+generalVQAs. Inaddition, wehopeinthe futuretounify
+our theorems 1 and 2 into a single result that bounds
+the variance as a function of a parameter that quantiﬁes
+the locality ofO. This would further solidify the con-
+nection between locality and trainability. Moreover, our
+numerics suggest that our theorems (which are stated
+for exact2-designs) might be extendable in some form to
+ansatzes composed of simpler blocks, like approximate
+2-designs [39].
+We emphasize that while our theorems are stated for
+a hardware-eﬃcient ansatz and for costs that are of the
+form (6), it remains an interesting open question as to
+whether other ansatzes, cost function, and architectures
+exhibit similar scaling behavior as that stated in our
+theorems. For instance, we have recently shown [50]
+that our results can be extended to a more general type
+of Quantum Neural Network called dissipative quan-
+tum neural networks [51]. Another potential example
+of interest could be the unitary-coupled cluster (UCC)
+ansatz in chemistry [52], which is intended for use in
+theO(poly(n)) depth regime [34]. Therefore it is impor-
+tant to study the key mathematical features of an ansatz
+that might allow one to go from trainability forO(logn)
+depth (which we guarantee here for local cost functions)
+to trainability forO(polyn) depth.
+Finally, we remark that some strategies have been de-
+veloped to mitigate the eﬀects of barren plateaus [32,
+33, 53, 54]. While these methods are promising and have
+been shown to work in certain cases, they are still heuris-
+tic methods with no provable guarantees that they can
+work in generic scenarios. Hence, we believe that more
+work needs to be done to better understand how to pre-
+vent, avoid, or mitigate the eﬀects of barren plateaus.
+METHODS
+In this section, we provide additional details for the
+results in the main text, as well as a sketch of the proofs
+for our main theorems. We note that the proof of The-
+orem 2 comes before that of Theorem 1 since the latter
+builds on the former. More detailed proofs of our theo-
+rems are given in the Supplementary Information.
+V ariance of the cost function partial derivative
+Let us ﬁrst discuss the formulas we employed to com-
+pute Var[∂νC]. Let us ﬁrst note that without loss of gen-
+erality, any blockWkl(θkl) in the Alternating Layered
+Ansatz can be written as a product ofζkl independent
+gates from a gate alphabetA ={Gµ(θ)} as
+Wkl(θkl) =Gζkl(θζkl
+kl )...G ν(θν
+kl)...G 1(θ1
+kl), (27)
+where each θν
+kl is a continuous parameter. Here,
+Gν(θν
+kl) = Rν(θν
+kl)Qν where Qν is an unparametrized
+gate andRν(θν
+kl) = e−iθν
+klσν/2 with σν a Pauli operator.
+Note thatWkL denotes a block in the last layer ofV (θ).
+For the proofs of our results, it is helpful to concep-
+tually break up the ansatz as follows. Consider a block
+Wkl(θkl) in thel-th layer of the ansatz. For simplicity we
+henceforth useW to refer to a givenWkl(θkl). LetSw de-
+note them-qubit subsystem that contains the qubitsW
+acts on, and letSw be the (n−m) subsystem on which
+W acts trivially. Similarly, letHw andHw denote the
+Hilbert spaces associated withSw and Sw, respectively.
+Then, as shown in Fig. 3(a),V (θ) can be expressed as
+V (θ) =VR(11w⊗W )VL. (28)
+Here, 11w is the identity onHw, andVR contains the gates
+in the (forward) light-coneL ofW, i.e., all gates with at
+least one input qubit causally connected to the output
+qubits of W. The latter allows us to deﬁneSL as the
+subsystem of all qubits inL.
+Let us here recall that the Alternating Layered Ansatz
+can be implemented with either a 1D or 2D square con-
+nectivity as schematically depicted in Fig. 3(c). We re-
+mark that the following results are valid for both cases
+as the light-cone structure will be the same. Moreover,
+the notation employed in our proofs applies to both the
+1D and 2D cases. Hence, there is no need to refer to the
+connectivity dimension in what follows.
+Letusnowassumethat θν isaparameterinsideagiven
+block W, we obtain from (6), (27), and (28)
+∂νC =i
+2Tr
+[
+(11w⊗WB)VLρV†
+L (11w⊗W†
+B) (29)
+× [11w⊗σν, (11w⊗W†
+A)V†
+ROVR(11w⊗WA)]
+]
+,
+with
+WB =
+ν−1∏
+µ=1
+Gµ(θµ), and WA =
+ζ∏
+µ=ν
+Gµ(θµ). (30)
+Finally, from (29) we can derive a general formula for
+the variance:
+Var[∂νC] = 2m−1Tr[σ2
+ν]
+(22m− 1)2
+∑
+pq
+p′q′
+⟨∆Ωq′p′
+qp ⟩VR⟨∆Ψp′q′
+pq ⟩VL (31)
+10
+which holds ifWA and WB form independent 2-designs.
+Here, the summation runs over all bitstringsp,q,p′,q′
+of length 2n−m. In addition, we deﬁned
+∆Ωq′p′
+qp = Tr[ΩqpΩq′p′]− Tr[Ωqp]Tr[Ωq′p′]
+2m , (32)
+∆Ψp′q′
+pq = Tr[ΨpqΨp′q′]− Tr[Ψpq]Tr[Ψp′q′]
+2m , (33)
+where Trw indicates the trace over subsystemSw, and
+Ωqp and Ψqp are operators onHw deﬁned as
+Ωqp = Trw
+[
+(|p⟩⟨q|⊗ 11w)V†
+ROVR
+]
+, (34)
+Ψpq = Trw
+[
+(|q⟩⟨p|⊗ 11w)VLρV†
+L
+]
+. (35)
+We derive Eq. (31) in the Supplementary Note 4.
+Computing averages over V
+Here we introduce the main tools employed to com-
+pute quantities of the form⟨... ⟩V. These tools are used
+throughout the proofs of our main results.
+Let us ﬁrst remark that if the blocks inV (θ) are in-
+dependent, then any average overV can be computed
+by averaging over the individual blocks, i.e.,⟨... ⟩V =
+⟨... ⟩W11,...,Wkl,... = ⟨... ⟩VL,W,VR. For simplicity let us
+ﬁrst consider the expectation value over a single blockW
+in the ansatz. In principle⟨... ⟩W can be approximated
+byvaryingtheparametersin W andsamplingoverthere-
+sulting 2m×2m unitaries. However, ifW formsa t-design,
+this procedure can be simpliﬁed as it is known that sam-
+pling over its distribution yields the same properties as
+sampling random unitaries from the unitary group with
+respect to the unique normalized Haar measure.
+Explicitly, the Haar measure is a uniquely deﬁned
+left and right-invariant measure over the unitary group
+dµ(W ), such that for any unitary matrixA∈U(2m) and
+for any functionf(W ) we have
+∫
+U (2m)
+dµ(W )f(W ) =
+∫
+dµ(W )f(AW )
+=
+∫
+dµ(W )f(WA ),
+(36)
+where the integration domain is assumed to beU(2m)
+throughout this work. Consider a ﬁnite set{Wy}y∈Y (of
+size|Y|)ofunitaries Wy, andletP(t,t)(W )beanarbitrary
+polynomial of degree at mostt in the matrix elements of
+W and at mostt in those ofW†. Then, this ﬁnite set is
+a t-design if [38]
+⟨P(t,t)(W )⟩w = 1
+|Y|·
+∑
+y∈Y
+P(t,t)(Wy)
+=
+∫
+dµ(W )P(t,t)(W ). (37)
+FIG. 7. The block W is in the ﬁrst layer ofV (θ), and the
+operator Oi acts on the topmost m qubits in the forward
+light-coneL of W. Dashed thick lines indicate the backward
+light-cone ofOi. All butL− 1 blocks simplify to identity in
+Ωqp of Eq. (34).
+From the general form ofC in Eq. (6) we can see the
+cost function is a polynomial of degree at most2 in the
+matrix elements of each blockWkl in V (θ), and at most
+2 in those of(Wkl)†. Then, if a given blockW forms a2-
+design, one can employ the following elementwise formula
+of the Weingarten calculus [55, 56] to explicitly evaluate
+averages overW up to the second moment:
+∫
+dµ(W )wijw∗
+i′j′ = δii′δjj′
+2m
+∫
+dµ(W )wi1j1wi2j2w∗
+i′
+1j′
+1
+w∗
+i′
+2j′
+2
+= 1
+22m− 1
+(
+∆1− ∆2
+2m
+)
+(38)
+where wij are the matrix elements ofW, and
+∆1 =δi1i′
+1δi2i′
+2δj1j′
+1δj2j′
+2 +δi1i′
+2δi2i′
+1δj1j′
+2δj2j′
+1,
+∆2 =δi1i′
+1δi2i′
+2δj1j′
+2δj2j′
+1 +δi1i′
+2δi2i′
+1δj1j′
+1δj2j′
+2. (39)
+Intuition behind the main results
+The goal of this section is to provide some intuition
+for our main results. Speciﬁcally, we show here how the
+scaling of the cost function variance can be related to
+the number of blocks we have to integrate to compute
+⟨···⟩ VR,VL, the locality of the cost functions, and with
+the number of layers in the ansatz.
+First, we recall from Eq. (38) that integrating over a
+block leads to a coeﬃcient of the order1/22m. Hence, we
+see that the more blocks one integrates over, the worse
+the scaling can be.
+We now generalize the warm-up example. LetV (θ) be
+a single layer of the alternating ansatz of Fig. 3, i.e.,V (θ)
+is a tensor product ofm-qubit blocksWk := Wk1, with
+k = 1,...,ξ (and with ξ = n/m), so thatθν is in the
+block Wk′. In the Supplementary Note 5 we generalize
+this scenario to the when the input state is not|0⟩, but
+instead is an arbitrary stateρ.
+11
+From (31), the partial derivative of the global cost
+function in (1) can be expressed as
+Var[∂νCG] =υ
+∏
+k̸=k′
+⟨
+Tr
+[
+|0⟩⟨0|⊗mWk|0⟩⟨0|⊗mW†
+k
+]2⟩
+Wk
+(40)
+whereυ = (2m−1)2Tr[σ2
+ν ]
+22m(2m+1−1)2. From (40) we have that in order
+to compute (40) one needs to integrate overξ− 1 blocks.
+Then, since each integration leads to a coeﬃcient1/22m
+the variance will scale as O(1/(22m)ξ−1 = O(1/22n).
+Hence, the scaling of the variance gets worse for each
+block we integrate (such that the block acts on qubits we
+are measuring).
+On the other hand, for a local cost let us consider a
+single term in (3) wherej∈S˜k, so that
+Var[∂νCL]∝ υ
+n2
+⟨
+Tr
+[
+(|0⟩⟨0|j⊗11j)W˜k|0⟩⟨0|⊗mW†
+˜k
+]2⟩
+W˜k
+.
+(41)
+Here, in contrast to the global case, we only have to inte-
+grate over a single block irrespective of the total number
+of qubits. Hence, we now ﬁnd that the variance scales as
+O(1/n2), where we remark that the scaling is essentially
+given by the prefactor1/n2 in (3).
+Let us now brieﬂy provide some intuition as to why the
+scaling of local cost gradients becomes exponentially van-
+ishing with the number of layers as in Theorem 2. Con-
+sider the case whenV (θ) containsL layers of the ansatz
+in Fig. 3. Moreover, as shown in Fig. 7, letW be in the
+ﬁrst layer, and letOi act on them topmost qubits ofL.
+As schematically depicted in Fig. 7, we now have to inte-
+grating overL−1 blocks. Then, as proved in the Supple-
+mentary Note 5, integrating over a block leads to a coeﬃ-
+cient 2m/2/(2m+1). Hence, after integratingL−1 times,
+we obtain a coeﬃcient2m(L−1)/2/(2m+1)L−1 which van-
+ishes no faster thanΩ (1/ poly(n)) if mL∈O (log(n)).
+As we discuss below, for more general scenarios the
+computation of Var[∂νC] becomes more complex.
+Sketch of the proof of the main theorems
+Here we present a sketch of the proof of Theorem 1 and
+Theorem 2. We refer the reader to the Supplementary
+Information for a detailed version of the proofs.
+As mentioned in the previous subsection, if each block
+in V (θ) forms a local 2-design, then we can explicitly
+calculate expectation values⟨... ⟩W via (38). Hence, to
+compute⟨∆Ωp′q′
+qp ⟩VR, and⟨∆Ψp′q′
+pq ⟩VL in (31), one needs
+to algorithmically integrate over each block using the
+Weingarten calculus. In order to make such computation
+tractable, we employ the tensor network representation
+of quantum circuits.
+Forthesakeofclarity, werecallthatanytwoqubitgate
+can be expressed asU =∑
+ijklUijkl|ij⟩⟨kl|, whereUijkl
+is a 2×2×2×2 tensor. Similarly, any block in the ansatz
+can be considered as a2
+m
+2× 2
+m
+2× 2
+m
+2× 2
+m
+2 tensor. As
+schematically shown in Fig. 8(a), one can use the circuit
+description of Ωi
+qp and Ψpq to derive the tensor network
+representation of terms such asTr[Ωi
+qpΩj
+q′p′]. Here, Ωi
+qp
+is obtained from (34) by simply replacingO with Oi.
+In Fig. 8(b) we depict an example where we employ
+the tensor network representation ofΩi
+qp to compute the
+average of Tr[Ωi
+qpΩj
+q′p′], and Tr[Ωi
+qp]Tr[Ωj
+q′p′]. As ex-
+pected, after each integration one obtains a sum of four
+new tensor networks according to Eq. (38).
+Proof of Theorem 2
+Let us ﬁrst consider anm-local cost functionC where
+O is given by (16), and whereˆOi acts non trivially in
+a given subsystem Sk ofS. In particular, when ˆOi is
+of this form the proof is simpliﬁed, although the more
+general proof is presented in the Supplementary Note 6.
+If Sk̸⊂SL we ﬁndΩi
+qp∝ 11w, and hence
+Tr[Ωi
+qpΩj
+q′p′]−
+Tr[Ωi
+qp]Tr[Ωj
+q′p′]
+2m = 0. (42)
+The latter implies that we only have to consider the op-
+erators ˆOi which act on qubits inside of the forward light-
+coneL of W.
+Then, as shown in the Supplementary Information
+⟨
+Tr[Ωi
+qpΩi
+q′p′]−
+Tr[Ωi
+qp]Tr[Ωi
+q′p′]
+2m
+⟩
+VR
+∝ϵ(ˆOi). (43)
+Here we remark that the proportionality factor con-
+tains terms of the formδ(p,q)S+
+w
+δ(p′,q′)S+
+w
+δ(p,q′)S−
+w
+δ(p′,q)S−
+w
+(where S+
+w∪S−
+w = Sw), which arises from the diﬀerent
+tensor contractions ofPpq =|q⟩⟨p| in Fig. 8(c). It is
+then straightforward to show that
+∑
+pq
+p′q′
+δ(p,q)S+
+w
+δ(p′,q′)S+
+w
+δ(p,q′)S−
+w
+δ(p′,q)S−
+w
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+=
+⟨
+DHS
+(
+˜ρ−, Trw[˜ρ−]⊗ 11
+2m
+)⟩
+VL
+, (44)
+where we deﬁne˜ρ− as the reduced states of˜ρ =VLρV†
+L in
+the Hilbert spaces associated with subsystemsSw∪S−
+w.
+Here we recall thatDHS is the Hilbert-Schmidt distance
+DHS (ρ,σ ) = Tr[(ρ−σ)2].
+By employing properties of DHS one can show (see
+Supplementary Note 6)
+DHS
+(
+˜ρ−, Trw[˜ρ−]⊗ 11
+2m
+)
+⩾
+DHS
+(
+˜ρw, 11
+2m
+)
+2m(L−l+2)/2 , (45)
+where ˜ρw = TrS−
+w
+[˜ρ−]. We can then leverage the ten-
+sor network representation of quantum circuits to algo-
+rithmically integrate over each block inVL and compute
+12
+FIG. 8. Tensor-network representations of the terms relevant toVar[∂νC]. a) Representation ofΩi
+qp of Eq. (34) (left), where
+the superscript indicates thatO is replaced byOi. In this illustration, we show the case ofn = 2m qubits, and we denote
+Ppq =|q⟩⟨p|. We also show the representation ofTr[Ωi
+qpΩj
+q′p′] (middle) and of Tr[Ωi
+qp]Tr[Ωj
+q′p′] (right). (b) By means of
+the Weingarten calculus we can algorithmically integrate over each block in the ansatz. After each integration one obtains
+four new tensors according to Eq. (38). Here we show the tensor obtained after the integrations
+∫
+dµ(W )Tr[Ωi
+qpΩj
+q′p′] and∫
+dµ(W )Tr[Ωi
+qp]Tr[Ωj
+q′p′], which are needed to compute⟨∆Ωq′p′
+qp ⟩VR as in Eq. (31). c) As shown in the Supplementary Note
+1, the result of the integration is a sum of the form (49), where the deltas overp, q, p′, andq′ arise from the contractions
+betweenPpq and Pp′q′.
+⟨DHS
+(
+˜ρw, 11
+2m
+)
+⟩VL. One ﬁnds
+⟨
+DHS
+(
+˜ρw, 11
+2m
+)⟩
+VL
+=
+∑
+(k,k′)∈kLB
+k′⩾k
+tk,k′ϵ(ρk,k′), (46)
+with tk,k′ ⩾ 2ml
+(2m+1)2l ∀k,k′, andϵ(ρk,k′) deﬁned in The-
+orem 2. Combining these results leads to Theorem 2.
+Moreover, as detailed in the Supplementary information,
+Theorem 2 is also valid whenO is of the form (16).
+Proof of Theorem 1
+Let us now provide a sketch of the proof of Theorem 1,
+case (i). Here we denote for simplicityˆOk := ˆO1k. We
+leave the proof of case (ii) for the Supplementary Note
+7. In this case there are now operators Oi which act
+outside of the forward light-coneL of W. Hence, it is
+convenient to include inVR not only all the gates inL
+but also all the blocks in the ﬁnal layer ofV (θ) (i.e.,
+all blocksWkL, withk = 1,...ξ ). We can deﬁneSL as
+the compliment ofSL, i.e., as the subsystem of all qubits
+which are not inL (with associated Hilbert-spaceHL).
+Then, we haveVR = VL⊗VL and|q⟩⟨p| =|q⟩⟨p|L⊗
+|q⟩⟨p|L, where we deﬁneVL :=⨂
+k∈kL
+WkL,|q⟩⟨p|L :=⨂
+k∈kL
+|q⟩⟨p|k, and|q⟩⟨p|L := ⨂
+k′∈kL
+|q⟩⟨p|k′. Here,
+we deﬁnekL :={k :Sk⊆SL} and kL :={k :Sk⊆SL},
+which are the set of indices whose associated qubits are
+inside and outsideL, respectively. We also write O =
+c011 +c1 ˆOL⊗ ˆOL, where we deﬁneˆOL :=⨂
+k∈kL
+ˆOk and
+ˆOL :=⨂
+k′∈kL
+ˆOk′.
+Using the fact that the blocks inV (θ) are indepen-
+dent we can now compute⟨∆Ωq′p′
+qp ⟩VR =⟨∆Ωq′p′
+qp ⟩VL,VL.
+13
+Then, from the deﬁnition ofΩpq in Eq. (34) and the fact
+that one can always express
+⣨
+∆Ωq′p′
+qp
+⟩
+VR
+=
+⟨
+Tr[ΩL
+qpΩL
+q′p′]−
+Tr[ΩL
+qp]Tr[ΩL
+q′p′]
+2m
+⟩
+VL
+×
+
+∏
+k∈kL
+⟨Ωk⟩WkL
+
+ , (47)
+with
+ΩL
+qp = TrL∩w
+[
+(|p⟩⟨q|⊗ 11w)VLOLVL
+]
+Ωk = Tr
+[
+|p⟩⟨q|kW†
+kLˆOkWkL
+]
+Tr
+[
+|p′⟩⟨q′|kW†
+kLˆOkWkL
+]
+and where TrL∩w indicates the partial trace over the
+Hilbert-space associated with the qubits inSL∩Sw. As
+detailed in the Supplementary Information we can use
+Eq. (38) to show that
+⟨Ωk⟩WkL
+⩽
+r2
+k
+(
+δ(p,q)Sk
+δ(p′,q′)Sk
++δ(p,q′)Sk
+δ(p′,q)Sk
+)
+22m− 1 . (48)
+On the other hand, as shown in the Supplementary
+Note 7 (and as schematically depicted in Fig. 8(c)), when
+computing the expectation value⟨... ⟩VL in (47), one ob-
+tains
+⟨
+Tr[ΩL
+qpΩL
+q′p′]−
+Tr[ΩL
+qp]Tr[ΩL
+q′p′]
+2m
+⟩
+VL
+=
+∑
+τ
+tij
+τ ∆OL
+τδτ,
+(49)
+where we deﬁnedδτ = δ(p,q)Sτ
+δ(p′,q′)Sτ
+δ(p,q′)Sτδ(p′,q)Sτ,
+tτ∈ R, Sτ∪Sτ =SL∩Sw (with Sτ̸=∅), and
+∆OL
+τ =Trxτyτ [Trzτ [Oi] Trzτ [Oj]]
+− Trxτ [Tryτzτ [Oi] Tryτzτ [Oj]]
+2m .
+(50)
+Here we use the notationTrxτ to indicate the trace over
+the Hilbert space associated with subsystemSxτ, such
+thatSxτ∪Syτ∪Szτ =SL. As shown in the Supplemen-
+tary Note 7, combining the deltas in Eqs. (48), and (49)
+with
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+leads to Hilbert-Schmidt distances be-
+tween two quantum states as in (44). One can then use
+thefollowingbounds DHS (ρ1,ρ 2) ⩽ 2, ∆OL
+τ ⩽∏
+k∈kL
+r2
+k,
+and∑
+τtτ ⩽ 2, along with some additional simple alge-
+bra explained in the Supplementary Information to ob-
+tain the upper bound in Theorem 1.
+Ansatz and optimization method
+Here we describe the gradient-free optimization
+method used in our heuristics. First, we note that all
+the parameters in the ansatz are randomly initialized.
+Then, at each iteration, one solves the following sub-
+space search problem: mins∈RdC(θ +A·s), where A
+is a randomly generated isometry, ands = (s1,...,s d)
+is a vector of coeﬃcients to be optimized over. We used
+d = 10 in our simulations. Moreover, the training algo-
+rithm gradually increases the number of shots per cost-
+function evaluation. Initially, C is evaluated with 10
+shots, and once the optimization reaches a plateau, the
+number of shots is increased by a factor of3/2. This pro-
+cessisrepeateduntilaterminationconditiononthevalue
+ofC is achieved, or until we reach the maximum value of
+105 shots per function evaluation. While this is a simple
+variable-shot approach, we remark that a more advanced
+variable-shot optimizer can be found in Ref. [57].
+Finally, letusremarkthatwhileweemployasub-space
+search algorithm, in the presence of barren plateaus all
+optimization methods will (on average) fail unless the al-
+gorithm has a precision (i.e., number of shots) that grows
+exponentially withn. The latter is due to the fact that an
+exponentially vanishing gradient implies that on average
+the cost function landscape will essentially be ﬂat, with
+the slope of the order ofO(1/2n). Hence, unless one has
+a precision that can detect such small changes in the cost
+value, one will not be able to determine a cost minimiza-
+tion direction with gradient-based, or even with black-
+box optimizers such as the Nelder-Mead method [58].
+ACKNOWLEDGMENTS
+We thank Jacob Biamonte, Elizabeth Crosson, Bu-
+rak Sahinoglu, Rolando Somma, Guillaume Verdon and
+Kunal Sharma for helpful conversations. All authors
+were supported by the Laboratory Directed Research
+and Development (LDRD) program of Los Alamos
+National Laboratory (LANL) under project numbers
+20180628ECR (for MC), 20190065DR (for AS, LC, and
+PJC), and 20200677PRD1 (for TV). MC and AS were
+also supported by the Center for Nonlinear Studies at
+LANL. PJC acknowledges initial support from the LANL
+ASC Beyond Moore’s Law project. This work was also
+supported by the U.S. Department of Energy (DOE), Of-
+ﬁce of Science, Oﬃce of Advanced Scientiﬁc Computing
+Research, under the Quantum Computing Application
+Teams program.
+AUTHOR CONTRIBUTIONS
+The project was conceived by MC, LC, and PJC. The
+manuscript was written by MC, AS, TV, LC, and PJC.
+TV proved Proposition 1. MC and AS proved Proposi-
+tion 2 and Theorems 1–2. MC, AS, TV, and PJC proved
+Corollaries 1–2. MC, AS, TV, LC, and PJC analyzed
+the quantum autoencoder. For the numerical results, TV
+performedthesimulationinFig.2, andLCperformedthe
+simulation in Fig. 5.
+14
+DA T A A V AILABILITY
+Data generated and analyzed during current study are
+available from the corresponding author upon reasonable
+request.
+COMPETING INTERESTS
+The authors declare no competing interests.
+[1] J. Preskill, “Quantum computing in the NISQ era and
+beyond,” Quantum2, 79 (2018).
+[2] Jarrod R McClean, Jonathan Romero, Ryan Babbush,
+and Alán Aspuru-Guzik, “The theory of variational
+hybrid quantum-classical algorithms,” New Journal of
+Physics 18, 023023 (2016).
+[3] E. Farhi, J. Goldstone, and S. Gutmann, “A quantum
+approximate optimization algorithm,” arXiv preprint
+arXiv:1411.4028 (2014).
+[4] Stuart Hadﬁeld, Zhihui Wang, Bryan O’Gorman,
+Eleanor G Rieﬀel, Davide Venturelli, and Rupak Biswas,
+“From the quantum approximate optimization algorithm
+to a quantum alternating operator ansatz,” Algorithms
+12, 34 (2019).
+[5] Matthew B Hastings, “Classical and quantum bounded
+depth approximation algorithms,” arXiv preprint
+arXiv:1905.07047 (2019).
+[6] A. Kandala, A. Mezzacapo, K. Temme, M. Takita,
+M. Brink, J. M. Chow, and J. M. Gambetta,
+“Hardware-eﬃcient variational quantum eigensolver for
+small molecules and quantum magnets,” Nature549, 242
+(2017).
+[7] Frank Arute, Kunal Arya, Ryan Babbush, Dave Ba-
+con, Joseph C Bardin, Rami Barends, Sergio Boixo,
+MichaelBroughton, BobBBuckley, DavidABuell, et al.,
+“Hartree-fock on a superconducting qubit quantum com-
+puter,” Science369, 1084–1089 (2020).
+[8] Frank Aruteet al., “Quantum approximate optimization
+of non-planar graph problems on a planar superconduct-
+ing processor,” arXiv preprint arXiv:2004.04197 (2020).
+[9] Jarrod R McClean, Sergio Boixo, Vadim N Smelyanskiy,
+Ryan Babbush, and Hartmut Neven, “Barren plateaus
+in quantum neural network training landscapes,” Nature
+communications 9, 4812 (2018).
+[10] A. Peruzzo, J. McClean, P. Shadbolt, M.-H. Yung, X.-Q.
+Zhou, P. J. Love, A. Aspuru-Guzik, and J. L. O’Brien,
+“A variational eigenvalue solver on a photonic quantum
+processor,” Nature Communications5, 4213 (2014).
+[11] J.Romero, J.P.Olson, andA.Aspuru-Guzik,“Quantum
+autoencoders for eﬃcient compression of quantum data,”
+Quantum Science and Technology2, 045001 (2017).
+[12] Peter D Johnson, Jonathan Romero, Jonathan Olson,
+Yudong Cao, and Alán Aspuru-Guzik, “QVECTOR: an
+algorithm for device-tailored quantum error correction,”
+arXiv preprint arXiv:1711.02249 (2017).
+[13] Bálint Koczor, Suguru Endo, Tyson Jones, Yuichiro Mat-
+suzaki, and Simon C Benjamin, “Variational-state quan-
+tum metrology,” New Journal of Physics 22, 083038
+(2020).
+[14] S. Khatri, R. LaRose, A. Poremba, L. Cincio, A. T. Sorn-
+borger, and P. J. Coles, “Quantum-assisted quantum
+compiling,” Quantum3, 140 (2019).
+[15] T. Jones and S. C Benjamin, “Quantum compilation
+and circuit optimisation via energy dissipation,” arXiv
+preprint arXiv:1811.03147 (2019).
+[16] Kunal Sharma, Sumeet Khatri, M. Cerezo, and Patrick J
+Coles, “Noise resilience of variational quantum compil-
+ing,” New Journal of Physics22, 043006 (2020).
+[17] Kentaro Heya, Yasunari Suzuki, Yasunobu Nakamura,
+and Keisuke Fujii, “Variational quantum gate optimiza-
+tion,” arXiv preprint arXiv:1810.12745 (2018).
+[18] R. LaRose, A. Tikku, É. O’Neel-Judy, L. Cincio, and
+P. J. Coles, “Variational quantum state diagonalization,”
+npj Quantum Information5, 1–10 (2018).
+[19] Carlos Bravo-Prieto, Diego García-Martín, and José I
+Latorre, “Quantum singular value decomposer,” Physical
+Review A 101, 062310 (2020).
+[20] Y. Li and S. C. Benjamin, “Eﬃcient variational quantum
+simulatorincorporatingactiveerrorminimization,” Phys.
+Rev. X 7, 021050 (2017).
+[21] K. Heya, K. M. Nakanishi, K. Mitarai, and K. Fu-
+jii, “Subspace variational quantum simulator,” arXiv
+preprint arXiv:1904.08566 (2019).
+[22] Cristina Cirstoiu, Zoe Holmes, Joseph Iosue, Lukasz Cin-
+cio, Patrick J Coles, and Andrew Sornborger, “Vari-
+ational fast forwarding for quantum simulation beyond
+the coherence time,” npj Quantum Information6, 1–10
+(2020).
+[23] Matthew Otten, Cristian L Cortes, and Stephen K Gray,
+“Noise-resilient quantum dynamics using symmetry-
+preserving ansatzes,” arXiv preprint arXiv:1910.06284
+(2019).
+[24] M. Cerezo, Alexander Poremba, Lukasz Cincio, and
+Patrick J Coles, “Variational quantum ﬁdelity estima-
+tion,” Quantum4, 248 (2020).
+[25] Jacques Carolan, Masoud Mosheni, Jonathan P Ol-
+son, Mihika Prabhu, Changchen Chen, Darius Bunan-
+dar, Nicholas C Harris, Franco NC Wong, Michael
+Hochberg, Seth Lloyd, et al. , “Variational quantum
+unsampling on a quantum photonic processor,” arXiv
+preprint arXiv:1904.10463 (2019).
+[26] A. Arrasmith, L. Cincio, A. T. Sornborger, W. H. Zurek,
+and P. J. Coles, “Variational consistent histories as a hy-
+brid algorithm for quantum foundations,” Nature com-
+munications 10, 3438 (2019).
+[27] Carlos Bravo-Prieto, Ryan LaRose, M. Cerezo, Yigit
+Subasi, Lukasz Cincio, and Patrick J. Coles, “Variational
+quantum linear solver,” arXiv preprint arXiv:1909.05820
+(2019).
+[28] X. Xu, J. Sun, S. Endo, Y. Li, S. C. Benjamin, and
+X. Yuan, “Variational algorithms for linear algebra,”
+arXiv preprint arXiv:1909.03898 (2019).
+[29] Hsin-Yuan Huang, Kishor Bharti, and Patrick Reben-
+trost, “Near-term quantum algorithms for linear systems
+of equations,” arXiv preprint arXiv:1909.07344 (2019).
+15
+[30] M. Cerezo and Patrick J Coles, “Impact of barren
+plateaus on the hessian and higher order derivatives,”
+arXiv preprint arXiv:2008.07454 (2020).
+[31] Andrew Arrasmith, M. Cerezo, Piotr Czarnik, Lukasz
+Cincio, and Patrick J Coles, “Eﬀect of barren
+plateaus on gradient-free optimization,” arXiv preprint
+arXiv:2011.12245 (2020).
+[32] Edward Grant, Leonard Wossnig, Mateusz Ostaszewski,
+and Marcello Benedetti, “An initialization strategy for
+addressing barren plateaus in parametrized quantum cir-
+cuits,” Quantum3, 214 (2019).
+[33] Guillaume Verdon, Michael Broughton, Jarrod R Mc-
+Clean, Kevin J Sung, Ryan Babbush, Zhang Jiang, Hart-
+mut Neven, and Masoud Mohseni, “Learning to learn
+with quantum neural networks via classical neural net-
+works,” arXiv preprint arXiv:1907.05415 (2019).
+[34] Joonho Lee, William J Huggins, Martin Head-Gordon,
+and K Birgitta Whaley, “Generalized unitary coupled
+cluster wave functions for quantum computation,” Jour-
+nal of chemical theory and computation 15, 311–324
+(2018).
+[35] Guillaume Verdon, Trevor McCourt, Enxhell Luzhnica,
+Vikash Singh, Stefan Leichenauer, and Jack Hidary,
+“Quantum graph neural networks,” arXiv preprint
+arXiv:1909.12264 (2019).
+[36] “IBM Q: Quantum devices and simulators,”https://
+www.research.ibm.com/ibm-q/technology/devices/,
+[Online; accessed May 18, 2020].
+[37] Frank Arute et al. , “Quantum supremacy using a pro-
+grammable superconducting processor,” Nature 574,
+505–510 (2019).
+[38] ChristophDankert, RichardCleve, JosephEmerson, and
+Etera Livine, “Exact and approximate unitary 2-designs
+and their application to ﬁdelity estimation,” Physical Re-
+view A 80, 012304 (2009).
+[39] Fernando GSL Brandao, Aram W Harrow, and Michał
+Horodecki, “Local random quantum circuits are approx-
+imate polynomial-designs,” Communications in Mathe-
+matical Physics 346, 397–434 (2016).
+[40] Aram Harrow and Saeed Mehraban, “Approximate uni-
+tary t-designs by short random quantum circuits using
+nearest-neighbor and long-range gates,” arXiv preprint
+arXiv:1809.06957 (2018).
+[41] Kwok Ho Wan, Oscar Dahlsten, Hlér Kristjánsson,
+Robert Gardner, and MS Kim, “Quantum generalisation
+of feedforward neural networks,” npj Quantum Informa-
+tion 3, 36 (2017).
+[42] Lucas Lamata, Unai Alvarez-Rodriguez, José David
+Martín-Guerrero, Mikel Sanz, and Enrique Solano,
+“Quantum autoencoders via quantum adders with ge-
+netic algorithms,” Quantum Science and Technology4,
+014007 (2018).
+[43] Alex Pepper, Nora Tischler, and Geoﬀ J Pryde, “Ex-
+perimental realization of a quantum autoencoder: The
+compression of qutrits via machine learning,” Physical
+review letters 122, 060501 (2019).
+[44] Guillaume Verdon, Jason Pye, and Michael Broughton,
+“A universal training algorithm for quantum deep learn-
+ing,” arXiv preprint arXiv:1806.09729 (2018).
+[45] Jeﬀrey Pennington and Yasaman Bahri, “Geometry of
+neural network loss surfaces via random matrix theory,”
+in Proceedings of the 34th International Conference on
+Machine Learning-Volume 70 (JMLR. org, 2017) pp.
+2798–2806.
+[46] Andrew Tranter, Peter J Love, Florian Mintert, and Pe-
+ter V Coveney, “A comparison of the bravyi–kitaev and
+jordan–wigner transformations for the quantum simula-
+tion of quantum chemistry,” Journal of chemical theory
+and computation 14, 5617–5630 (2018).
+[47] Sergey B Bravyi and Alexei Yu Kitaev, “Fermionic
+quantum computation,” Annals of Physics298, 210–226
+(2002).
+[48] Alexey Uvarov, Jacob D Biamonte, and Dmitry Yudin,
+“Variational quantum eigensolver for frustrated quantum
+systems,” Physical Review B102, 075104 (2020).
+[49] Jacob Biamonte, “Universal variational quantum compu-
+tation,” arXiv preprint arXiv:1903.04500 (2019).
+[50] Kunal Sharma, M. Cerezo, Lukasz Cincio, and
+Patrick J Coles, “Trainability of dissipative perceptron-
+based quantum neural networks,” arXiv preprint
+arXiv:2005.12458 (2020).
+[51] Kerstin Beer, Dmytro Bondarenko, Terry Farrelly, To-
+bias J Osborne, Robert Salzmann, Daniel Scheiermann,
+and Ramona Wolf, “Training deep quantum neural net-
+works,” Nature Communications11, 1–6 (2020).
+[52] Rodney J Bartlett and Monika Musiał, “Coupled-cluster
+theory in quantum chemistry,” Reviews of Modern
+Physics 79, 291 (2007).
+[53] Tyler Volkoﬀ and Patrick J Coles, “Large gradients via
+correlation in random parameterized quantum circuits,”
+Quantum Science and Technology (2021).
+[54] Andrea Skolik, Jarrod R McClean, Masoud Mohseni,
+Patrick van der Smagt, and Martin Leib, “Layerwise
+learning for quantum neural networks,” arXiv preprint
+arXiv:2006.14904 (2020).
+[55] Benoît Collins and Piotr Śniady, “Integration with re-
+spect to the haar measure on unitary, orthogonal and
+symplectic group,” Communications in Mathematical
+Physics 264, 773–795 (2006).
+[56] Zbigniew Puchała and Jaroslaw Adam Miszczak, “Sym-
+bolic integration with respect to the haar measure on
+the unitary groups,” Bulletin of the Polish Academy of
+Sciences Technical Sciences65, 21–27 (2017).
+[57] Jonas M Kübler, Andrew Arrasmith, Lukasz Cin-
+cio, and Patrick J Coles, “An adaptive optimizer for
+measurement-frugal variational algorithms,” Quantum4,
+263 (2020).
+[58] John A Nelder and Roger Mead, “A simplex method for
+functionminimization,” Thecomputerjournal7,308–313
+(1965).
+[59] R. E. A. C. Paley and A. Zygmund, “A note on analytic
+functions in the unit circle,” Math. Proc. Camb. Phil.
+Soc. 28, 266 (1932).
+[60] Motohisa Fukuda, Robert König, and Ion Nechita,
+“RTNI—a symbolic integrator for haar-random tensor
+networks,” Journal of Physics A: Mathematical and The-
+oretical 52, 425303 (2019).
+[61] M. A. Nielsen and I. L. Chuang,Quantum Computation
+and Quantum Information: 10th Anniversary Edition ,
+10th ed. (Cambridge University Press, New York, NY,
+USA, 2011).
+16
+Supplementary Information for “Cost Function Dependent Barren
+Plateaus in Shallow Parametrized Quantum Circuits”
+In this Supplementary Information, we present detailed proofs of the propositions, theorems, and corollaries pre-
+sented in the manuscript “Cost Function Dependent Barren Plateaus in Shallow Parametrized Quantum Circuits”. In
+Supplementary Note 1 we ﬁrst introduce several lemmas which will be useful in the derivation of our main results.
+Then, in Supplementary Note 2, and Supplementary Note 3 we respectively provide proofs for Propositions 1 and 2
+of the main text. We then derive the general equations for the variance of the cost function partial derivative in
+Supplementary Note 4. In Supplementary Note 5 we explicitly evaluate the variance of the cost function derivative
+for the special case whenV (θ) is given by a single layer of the Alternating Layered Ansatz.
+In Supplementary Note 6, and Supplementary Note 7, we provide our proofs to Theorem 2 and Theorem 1, respec-
+tively. Where we remark that the proof of Theorem 2 comes before that of Theorem 1 since the latter builds on the
+former. Then, in Supplementary Note 8, we prove Corollaries 1, and 2. In Supplementary Note 9, we demonstrate
+that the local cost function for the quantum autoencoder is faithful.
+Supplementary Note 1: Preliminaries
+In this section, we present properties that allow for analytic calculation of integrals of polynomial functions over
+the unitary group with respect to the unique normalized Haar measure. For more details on this topic, we refer the
+reader to Ref. [55, 56]. In addition, to make the Supplementary Information more self-contained, we reiterate here
+the deﬁnition of at-design. Consider a ﬁnite set{Wy}y∈Y (of size|Y|) of unitariesWy on ad-dimensional Hilbert
+space, and letP(t,t)(W ) be an arbitrary polynomial of degree at mostt in the matrix elements ofW and at mostt in
+those ofW†. Then, we say that this ﬁnite set is at-deisgn if [38]
+1
+|Y|·
+∑
+y∈Y
+P(t,t)(Wy) =
+∫
+U (d)
+dµ(W )P(t,t)(W ), (51)
+where in the right-hand sideU(d) denotes the unitary group of degree d. Equation (51) implies that averaging
+P(t,t)(W ) over thet-design is indistinguishable from integrating overU(d) with respect to the Haar distribution.
+GivenW∈U(d) the following expressions are valid for the ﬁrst two moments [55, 56]
+∫
+U (d)
+dµ(W )wi,jw∗
+p,k = δi,pδj,k
+d , (52)
+∫
+U (d)
+dµ(W )wi1,j1wi2,j2w∗
+i′
+1,j′
+1
+w∗
+i′
+2,j′
+2
+= 1
+d2− 1
+(
+δi1,i′
+1δi2,i′
+2δj1,j′
+1δj2,j′
+2 +δi1,i′
+2δi2,i′
+1δj1,j′
+2δj2,j′
+1
+)
+− 1
+d(d2− 1)
+(
+δi1,i′
+1δi2,i′
+2δj1,j′
+2δj2,j′
+1 +δi1,i′
+2δi2,i′
+1δj1,j′
+1δj2,j′
+2
+)
+. (53)
+All throughout this section the integration domain will be implied to beU(d), and unless otherwise speciﬁed we
+consider W to be an operator acting on a Hilbert spaceHw of dimensiond. When d = 2m, as occurs for a Hilbert
+space ofm qubit, we adopt the symboli = (i1,...i m) to denote a bitstring of lengthm such thati1,i 2,...,i m∈{ 0, 1}.
+Moreover, given two bitstringsi andj we deﬁne their concatenation asi·j = (i1,...i n,j 1,...j n).
+Operators in the computational basis ofm qubits can be written as
+W =
+∑
+i,j
+wi,j|i⟩⟨j|, W † =
+∑
+i′,j′
+w∗
+i′,j′|j′⟩⟨i′|, A =
+∑
+k,l
+ak,l|k⟩⟨l|, B =
+∑
+q,p
+bq,p|q⟩⟨p|.
+From the previous expressions we can derive the following lemmas.
+Lemma 1. Let{Wy}y∈Y ⊂ U(d) form a unitaryt-design witht≥ 1, and letA,B :Hw→H w be arbitrary linear
+operators. Then
+1
+|Y|
+∑
+y∈Y
+Tr
+[
+WyAW†
+yB
+]
+=
+∫
+dµ(W )Tr
+[
+WAW†B
+]
+= Tr [A] Tr [B]
+d . (54)
+17
+Proof. The ﬁrst equality follows from the deﬁnition of at-design. Note thatTr
+[
+WAW†B
+]
+can be written as
+Tr
+[
+WAW†B
+]
+=
+∑
+i1,j1,i′
+1,j′
+1
+aj1,j′
+1bi′
+1,i1wi1,j1w∗
+i′
+1,j′
+1
+.
+Then, from (52), we have
+∫
+dµ(W )Tr
+[
+WAW†B
+]
+= 1
+d
+∑
+i1,j1
+aj1,j1bi1,i1 = Tr [A] Tr [B]
+d .
+Lemma 2. Let{Wy}y∈Y ⊂U(d) form a unitaryt-design witht≥ 2 and letA,B,C,D :Hw→H w be arbitrary linear
+operators. Then
+1
+|Y|
+∑
+y∈Y
+Tr[WyAW†
+yBWyCW†
+yD] =
+∫
+dµ(W )Tr[WAW†BWCW †D]
+= 1
+d2− 1 (Tr[A]Tr[C]Tr[BD] + Tr[AC]Tr[B]Tr[D])
+− 1
+d(d2− 1) (Tr[AC]Tr[BD] + Tr[A]Tr[B]Tr[C]Tr[D]) .
+(55)
+Proof. The ﬁrst equality follows from that fact thatTr[WyAW†
+yBWyCW†
+yD]∈P(2,2)(Wy). By writting
+Tr[WAW†BWCW †D] =
+∑
+i1,j1,i′
+1,j′
+1
+i2,j2,i′
+2,j′
+2
+aj1,j′
+1bi′
+1,i2cj2,j′
+2di′
+2,i1wi1,j1wi2,j2w∗
+i′
+1,j′
+1
+w∗
+i′
+2,j′
+2
+,
+we can use (53) to obtain
+∫
+dµ(W )Tr[WAW†BWCW †D] = 1
+d2− 1
+∑
+i1,j1,i2,j2
+(
+aj1,j1bi1,i2cj2,j2di2,i1 +aj1,j2bi2,i2cj2,j1di1,i1
+)
+− 1
+d(d2− 1)
+∑
+i1,j1,i2,j2
+(
+aj1,j2bi1,i2cj2,j1di2,i1 +aj1,j1bi2,i2cj2,j2di1,i1
+)
+= 1
+d2− 1 (Tr[A]Tr[C]Tr[BD] + Tr[AC]Tr[B]Tr[D])
+− 1
+d(d2− 1) (Tr[AC]Tr[BD] + Tr[A]Tr[B]Tr[C]Tr[D]) .
+(56)
+Lemma 3. Let{Wy}y∈Y ⊂U(d) form a unitaryt-design witht≥ 2 and letA,B,C,D :Hw→H w be arbitrary linear
+operators. Then
+1
+|Y|
+∑
+y∈Y
+Tr[WyAW†
+yB]Tr[WyCW†
+yD] =
+∫
+dµ(W )Tr[WAW†B]Tr[WCW†D]
+= 1
+d2− 1 (Tr[A]Tr[B]Tr[C]Tr[D] + Tr[AC]Tr[BD])
+− 1
+d(d2− 1) (Tr[AC]Tr[B]Tr[D] + Tr[A]Tr[C]Tr[BD]) .
+Proof. The ﬁrst equality follows from a reasoning similar to the one used in Lemma 2. By expressing
+Tr
+[
+WAW†B
+]
+Tr
+[
+WCW†D
+]
+=
+∑
+α,β
+Tr
+[
+WAW†B|α⟩⟨β|WCW†D|β⟩⟨α|
+]
+,
+18
+we can employ (55) to obtain
+∫
+dµ(W )Tr[WAW†B]Tr[WCW†D] =
+∑
+α,β
+∫
+dµ(W )Tr
+[
+WAW†B|α⟩⟨β|WCW†D|β⟩⟨α|
+]
+= 1
+d2− 1
+∑
+α,β
+(Tr[A]Tr[C]⟨α|B|α⟩⟨β|D|β⟩ + Tr[AC]⟨β|B|α⟩⟨α|D|β⟩)
+− 1
+d(d2− 1)
+∑
+α,β
+(Tr[AC]⟨α|B|α⟩⟨β|D|β⟩ + Tr[A]Tr[C]⟨β|B|α⟩⟨α|D|β⟩)
+= 1
+d2− 1 (Tr[A]Tr[B]Tr[C]Tr[D] + Tr[AC]Tr[BD])
+− 1
+d(d2− 1) (Tr[AC]Tr[B]Tr[D] + Tr[A]Tr[C]Tr[BD]) .
+Lemma 4. LetH =Hw⊗Hw be a bipartite Hilbert space of dimensiond = dwdw, and let{Wy}y∈Y be a unitary
+t-design witht≥ 1 such thatWy∈U(dw) for ally∈Y. Then for arbitrary linear operatorsA,B :H→H , we have
+∫
+dµ(W )(11w⊗W )A(11w⊗W†)B = Trw [A]⊗11w
+dw
+B, (57)
+and
+∫
+dµ(W )Tr
+[
+(11w⊗W )A(11w⊗W†)B
+]
+= 1
+dw
+Tr [Trw [A] Trw [B]] . (58)
+Here we use the notation11w to indicate the identity operator on subsystemHw, and we employTrw to indicate
+the partial trace overHw.
+Proof. First, note that
+(11w⊗W )A(11w⊗W†)B =
+∑
+i,j,i′,j′
+wi,jw∗
+i′,j′(11w⊗|i⟩⟨j|)A(11w⊗|j′⟩⟨i′|)B,
+by using (52) we have
+∫
+dµ(W )(11w⊗W )A(11w⊗W†)B =
+∑
+i,j,i′,j′
+∫
+dµ(W )wi,jw∗
+i′,j′(11w⊗|i⟩⟨j|)A(11w⊗|j′⟩⟨i′|)B
+= 1
+dw
+∑
+i,j
+(11w⊗|i⟩⟨j|)A(11w⊗|j⟩⟨i|)B
+= 1
+dw
+(Trw [A]⊗11w)B.
+Finally we can also obtain
+∫
+dµ(W )Tr
+[
+(11w⊗W )A(11w⊗W†)B
+]
+= 1
+dw
+Tr [Trw [A] Trw [B]] .
+Lemma 5. IfH =Hw⊗H w is a bipartite Hilbert space of dimensiond = dwdw (d = 2n, and d = 2n′
+), and if
+A,B :H→H are arbitrary linear operators, then for any linear operatorW :Hw→H w we have
+Tr
+[
+(11w⊗W )A(11w⊗W†)B
+]
+=
+∑
+p,q
+Tr
+[
+WAqpW†Bpq
+]
+, (59)
+where the summation runs over all bitstrings of lengthn′, and where
+Aqp = Trw [(|p⟩⟨q|⊗ 11w)A] , B pq = Trw [(|q⟩⟨p|⊗ 11w)B] . (60)
+19
+Proof. By expanding the operators in the computational basis
+11w⊗W =
+∑
+p,i,j
+wi,j|p⟩⟨p|⊗| i⟩⟨j|, 11w⊗W† =
+∑
+q,i′,j′
+w∗
+i′,j′|q⟩⟨q|⊗| j′⟩⟨i′|, (61)
+A =
+∑
+k1,k2
+l1,l2
+ak1·k2,l1·l2|k1⟩⟨l1|⊗| k2⟩⟨l2|, B =
+∑
+p1,p2
+q1,q2
+bp1·p2,q1·q2|p1⟩⟨q1|⊗| p2⟩⟨q2|, (62)
+we have
+Tr
+[
+(11w⊗W )A(11w⊗W†)B
+]
+=
+∑
+i,j,i′,j′
+p,q
+wi,jap·j,q·i′wi′,j′bq·j′,p·i =
+∑
+p,q
+Tr
+[
+WAqpW†Bpq
+]
+. (63)
+Lemma 6. LetH =H1⊗H 2⊗H 3⊗H 4 be a Hilbert space of dimensiond·d·d·d =d4, and letW :H1⊗H 2→H 1⊗H 2
+be at-design witht ⩾ 2. For arbitrary linear operatorsA,A′ :H→H we deﬁne
+Ω1 = (W⊗113⊗114)A(W†⊗113⊗114)(|p⟩⟨q|⊗ 112⊗113⊗114), Ω2 = (W⊗113⊗114)A(W†⊗113⊗114), (64)
+Ω′
+1 = (W⊗113⊗114)A′(W†⊗113⊗114)(|p′⟩⟨q′|⊗ 112⊗113⊗114), Ω′
+2 = (W⊗113⊗114)A′(W†⊗113⊗114), (65)
+wherep,q,p′, andq′ are bitstrings of lengthd.
+Let us ﬁrst consider the quantity
+∆Ω(1)
+jkl = Trkl [Tr1j[Ω1]Tr1j[Ω′
+1]]− TrL[Tr1jk[Ω1]1jkTr[Ω′
+1]]
+dk
+, (66)
+where Trj indicates the partial trace overHj, and whereTrjk := TrjTrk. Here the indexesj,k, andl deﬁne Hilbert
+spaces such thatHj⊗H k⊗H L =H2⊗H 3⊗H 4. In addition, let us deﬁneHj =H0 :={0}, in which case for
+any operatorO we also deﬁne the partial trace overH0 as Tr0 [O] := O, and Trk0 [O] := Trk [O]. From the previous
+deﬁnition, we then have thatHk can be chosen from the set{H2,H3,H2⊗H 3,H3⊗H 4}, and for any such choice the
+following equality always holds
+∫
+dµ(W )∆Ω(1)
+jkl =t(1)
+1 δpq′δp′q
+d4− 1
+(
+Tr123x[Try[A]Try[A′]]− Tr3x[Tr12y[A]Tr12y[A′]]
+d2
+)
++ t(1)
+2 δpqδp′q′
+d4− 1
+(
+Tr3x[Tr12y[A]Tr12y[A′]]− Trx[Tr123y[A]Tr123y[A′]]
+d′
+)
+− t(1)
+3 δpq′δp′q
+d4− 1
+(
+Tr12x[Tr3y[A]Tr3y[A′]]− Trx[Tr123y[A]Tr123y[A′]]
+d2
+)
+− t(1)
+4 δpqδp′q′
+d4− 1
+(
+Tr123x[Try[A]Try[A′]]− Tr12x[Tr3y[A]Tr3y[A′]]
+d′
+)
+(67)
+whered′ =d2 ifH4 ⩽Hk, andd′ =d otherwise. Here we employ the notationA ⩽B to indicate thatA is a subspace
+of B. Note thatHy =H4,Hx =H0 ifH4 ⩽Hj, andHy =H0,Hx =H4 otherwise. In addition, we have
+t(1)
+1 =
+
+
+
+d ifH2 ⩽Hj
+0 ifHk =H2
+d2 otherwise
+, t (1)
+2 =
+
+
+
+d2 ifH2 ⩽Hj
+0 ifHk =H2
+d otherwise
+, t (1)
+4 =
+
+
+
+1 ifH2 ⩽Hj, andH3∈H k
+0 ifHk =H1
+1
+d otherwise
+(68)
+t(1)
+3 =
+
+
+
+d ifHk =H3, andH2 ⩽HL
+1−d2 ifHk =H2
+1
+d ifHk =H2⊗H 3, or ifHk =H3⊗H 4, andHj =H2
+1 otherwise
+, (69)
+where we can verify that for all12 possible cases that∑4
+k=1| t(1)
+k
+(d4−1)| ⩽ 1.
+Second, let us consider the quantity
+∆Ω(2)
+jkl = Trkl [Tr1j[Ω2]Tr1j[Ω′
+2]]− TrL[Tr12j[Ω2]1jkTr[Ω′
+2]]
+dk
+. (70)
+20
+Then, forHk∈{H 2,H3,H2⊗H 3,H3⊗H 4}, the following equality always holds
+∫
+dµ(W )∆Ω(2)
+jkl = t(2)
+1
+d2 + 1
+(
+Tr123x[Try[A]Try[A′]]− Tr3x[Tr12y[A]Tr12y[A′]]
+d2
+)
++ t(2)
+2
+d2 + 1
+(
+Tr3x[Tr12y[A]Tr12y[A′]]− Trx[Tr123y[A]Tr123y[A′]]
+d′
+)
+− t(2)
+3
+d2 + 1
+(
+Tr12x[Tr3y[A]Tr3y[A′]]− Trx[Tr123y[A]Tr123y[A′]]
+d2
+)
+,
+(71)
+where d′ =d2 ifH4 ⩽Hk, andd′ =d otherwise. Similarly,Hy =H4,Hx =H0 ifH4 ⩽Hj, andHy =H0,Hx =H4
+otherwise. In addition, we now have
+t(2)
+1 =
+{
+0 ifH2 ⩽Hj
+d otherwise , t (2)
+2 =
+{
+0 ifH2 ⩽Hj, orHk =H2
+d2+1
+d otherwise , t (2)
+3 =
+
+
+
+1 ifH2 ⩽HL, andHk =H3
+1
+d ifHL =H2, andHk =H3⊗H 4
+0 otherwise
+, (72)
+where we can verify that for all9 nontrivial cases∑3
+k=1| t(2)
+k
+d2+1| ⩽ 1.
+Proof. The proof of Eqs. (67), and (71) can be obtain by explicitly integrating each term via (53).
+In particular, let us consider from Eq. (67) the following case which will be relevant for our proofs.
+∫
+dµ(W )
+(
+Tr34
+[
+Tr12[Ω1]Tr12[Ω′
+1]
+]
+− Tr[Ω1]Tr[Ω′
+1]
+d2
+)
+=
+d2δp2q′
+2
+δp′
+2q2
+d4 − 1
+(
+Tr234[Tr1[A]Tr1[A′]] − Tr4[Tr123[A]Tr123[A′]]
+d2
+)
++
+dδp2q2δp′
+2q′
+2
+d4 − 1
+(
+Tr4[Tr123[A]Tr123[A′]] − Tr[A]Tr[A′]
+d
+)
+−
+δp2q′
+2
+δp′
+2q2
+d(d4 − 1)
+(
+Tr23[Tr14[A]Tr14[A′]] − Tr[A]Tr[A′]
+d2
+)
+−
+δp2q2δp′
+2q′
+2
+d(d4 − 1)
+(
+Tr234[Tr1[A]Tr1[A′]] − Tr23[Tr14[A]Tr14[A′]]
+d
+)
+.
+(73)
+Lemma 7. LetH =H1⊗H 2⊗H 3 be a tripartite Hilbert space of dimensiond =d1d2d3, and letO1 =OA⊗112⊗113,
+and O2 = 111⊗OB⊗ 113 be linear operators onS. Here 11i indicates the identity over subsystemSi, so thatO1 and
+O2 have no overlapping support. Then for any linear operatorsOA :S1→S1, andOB :S2→S2 we have
+Trjk [Tri [O1] Tri [O2]]− Trk [Trij [O1] Trij [O2]]
+dj
+= 0, (74)
+where Tri indicates the partial trace overHi, Trij := TriTrj, and where we deﬁnedHi⊗Hj⊗Hk =H such that
+Hj =H1,H2 orH3. Moreover, one can always chooseHi =H0 :={0} (orHk =H0), in which case we deﬁne the
+partial trace overH0 as Tr0 [O] :=O, and Trj0 [O] := Trj [O].
+Proof. Let us show how this equality holds for the speciﬁc case whenHi ={0},Hj =H2, andHk =H1⊗H 3, and
+let us remark that all remaining cases follow similarly We have
+Tr0 [O1] Tr0 [O2] =OA⊗OB⊗113, Tr2 [O1] =d2OA⊗113, Tr2 [O2] = Tr2 [OB]111⊗113, (75)
+and Eq. (74) becomes
+Tr123 [O1O2]− Tr13 [Tr2 [O1] Tr2 [O2]]
+d2
+= Tr123 [OA⊗OB⊗113]− d2Tr2 [OB] Tr13 [OA⊗113]
+d2
+(76)
+=d3Tr1 [OA] Tr2 [OB]− d2d3Tr1 [OA] Tr2 [OB]
+d2
+(77)
+= 0. (78)
+21
+Supplementary Note 2: Proof of Proposition 1
+Here we provide a proof for Proposition 1, which we recall for convenience:
+Proposition 1. Letθj be uniformly distributed on[−π,π ]∀j. For anyδ∈ (0, 1), the probability thatCG≤δ satisﬁes
+Pr{CG≤δ}≤ (1−δ)−1
+(1
+2
+)n
+. (79)
+For anyδ∈ [ 1
+2, 1], the probability thatCL≤δ satisﬁes
+Pr{CL≤δ}≥ (2δ− 1)2
+1
+2n + (2δ− 1)2 −→
+n→∞
+1. (80)
+Proposition 1 formalizes the narrow gorge phenomenon shown in Fig. 2 of the main text for the warm-up example.
+Speciﬁcally, it bounds the volume of parameter space that is trainable in the sense that the cost deviates from its
+maximum value of one. As a consequence, one ﬁnds that the probability that the global cost function is less than 1
+vanishes exponentially asn→∞ , whereas for the local cost function there are neighbohoods of the minimum that
+have constant probability asn→∞ . In the following proof, it is helpful to deﬁne the trainable region for the global
+and local cost asAG
+δ :={θ :CG(θ) ⩽δ} and AL
+δ :={θ :CL(θ) ⩽δ}.
+Proof. Let us ﬁrst consider the global cost function
+CG = Tr[OGV (θ)|0⟩⟨0|V (θ)†], (81)
+with OG = 11−| 0⟩⟨0|, and withV (θ) = ⨂n
+j=1e−iθjσ(j)
+x /2. The probability of the regionAG
+δ can be bounded from
+above by deﬁning the random variableX =∏n
+j=1 cos2 θj
+2 = 1−CG and noting that(1−δ)P{X≥ 1−δ}≤ E(X).
+Then
+Pr(AG
+δ ) =P{
+n∏
+j=1
+cos2 θj
+2 ≥ 1−δ}
+≤ (1−δ)−1E
+
+
+n∏
+j=1
+cos2 θj
+2
+
+
+= (1−δ)−1
+(1
+2
+)n
+(82)
+Therefore, for anyδ∈ (0, 1), the probability thatCG≤δ goes to zero exponentially withn.
+Now consider the local cost functionCL given by
+CL = Tr
+[
+OLV (θ)|0⟩⟨0|V (θ)†]
+, with OL = 11− 1
+n
+n∑
+j=1
+|0⟩⟨0|j⊗11j, (83)
+and where 11j is the identity on all qubits except qubitj. To show the dependence of the result on the range of
+local cost function values, we write a parametrized local cost functionCL(;λ) := 1 − 1
+λn
+∑n
+j=1 cos2 θj
+2 and deﬁne
+AL
+δ :={θ :CL(θ;λ) ⩽δ}. CL in the main text is obtained forλ = 1. The parameterλ is introduced to show that the
+range of validity of the inequality is dependent on the cost function. Forδ in the intervalδ∈ (1− (2λ)−1, 1],
+Pr
+(
+AL
+δ
+)
+= Pr
+
+
+
+
+θ : 1
+λn
+n∑
+j=1
+cos2 θj
+2 ≥ 1−δ
+
+
+
+
+ ⩾ (1− 2λ(1−δ))2
+1
+2n + (1− 2λ(1−δ))2 (84)
+which tends to 1 asn→∞ . The inequality follows from the Paley-Zygmund inequality [59] in the form
+P (X≥rE(X)) ⩾ (1−r)2E(X)2
+VarX + (1−r)2E(X)2 (85)
+which holds for random variables X ≥ 0 and scalar r with 0 ⩽ r ⩽ 1. In particular, (84) follows by taking
+X = 1
+nλ
+∑n
+j=1 cos2 θj
+2 and r = 2λ(1−δ), so thatr varies from1 to 0 as δ varies from1− (2λ)−1 to 1.
+22
+Supplementary Note 3: Proof of Proposition 2
+Let us ﬁrst recall that in the main text we analyze cost functionsC which can be expressed as the expectation
+value of a given observableO as
+C = Tr
+[
+OV (θ)ρV†(θ)
+]
+, (86)
+whereV (θ) is a parametrized quantum gate sequence andρ is a general input mixed quantum state onn qubits. Here
+we provide a proof for Proposition 2, which we recall for convenience:
+Proposition 2. The average of the partial derivative of any cost function of the form (86) with respect to a parameter
+θν in a blockW of the ansatzV (θ) is
+⟨∂νC⟩V = 0, (87)
+provided that eitherWA or WB form a 1-design.
+As discussed in the main text, we employ an Alternating Layered Ansatz, where each layer is composed ofm-qubits
+gates or “blocks”. In particular, each blockWkl(θkl) in V (θ) can be written as a product ofζkl independent gates
+from a gate alphabetA ={Gµ(θ)} as
+Wkl(θkl) =Gζkl(θζkl
+kl )...G ν(θν
+kl)...G 1(θ1
+kl), (88)
+whereθν
+kl are continuous parameter, and whereGν(θν
+kl) =Rν(θν
+kl)Qν withQν an unparametrized gate, andRν(θν
+kl) =
+e−iθν
+klσν/2 such thatσν is a Pauli operator.
+Consider now a blockWkl(θkl) in thel-th layer of the ansatz. For the rest of this Supplementary Information we
+simply use the notationW when referring to this particular block. First, letSw denote them-qubit subsystem that
+contains the qubitsW acts on, and letSw be the (n−m) subsystem on whichW acts trivially, withHw, andHw
+their respective associated Hilbert spaces. Then, consider a given trainable parameterθν in W, such that we can
+express W =WBWA, with
+WB =
+ν−1∏
+µ=1
+Gµ(θµ), and WA =
+ζ∏
+µ=ν
+Gµ(θµ). (89)
+Then, we recall that we have deﬁned the forward light-coneL of W as all gates with at least one input qubit
+causally connected to the output qubits ofW. We can then deﬁneSL as the subsystem of all qubits inL, andHL as
+its associated Hilbert space. Without loss of generality, the trainable gate sequence can be expressed as
+V (θ) =VR(11w⊗W )VL, (90)
+where 11w indicates the identity inHw, and where we assume without loss of generality thatVR contains the gates in
+L and all the blocksWkL in the last layer ofV (θ).
+Proof. The partial derivative ofW with respect to the angleθν is given by
+∂νW =WA
+(
+−i
+2σν
+)
+WB, (91)
+where hereσν is an operatorσν :Hw→H w, which acts non-trivially on a qubit given qubitj inHw, i.e., σν :=
+(σν)j⊗11j. Hence, by means of Eqs. (91) and (90) we have
+∂νC =Tr
+[
+O (∂νV (θ))ρV†(θ) +V (θ)ρ
+(
+∂νV†(θ)
+)]
+=Tr
+[
+OVR (11w⊗WA)
+(
+11w⊗
+(
+−i
+2σν
+))
+(11w⊗WB)VLρV†
+L
+(
+11w⊗W†
+BW†
+A
+)
+V†
+R
+]
++ Tr
+[
+OVR (11w⊗WAWB)VLρV†
+L
+(
+11w⊗W†
+B
+)(
+11w⊗
+(
++i
+2σν
+))(
+11w⊗W†
+A
+)
+V†
+R
+]
+.
+Which can be simpliﬁed as
+∂νC = i
+2Tr
+[
+(11w⊗WB)VLρV†
+L
+(
+11w⊗W†
+B
+)[
+11w⊗σν,
+(
+11w⊗W†
+A
+)
+V†
+ROVR (11w⊗WA)
+]]
+, (92)
+23
+or equivalently, as
+∂νC =−i
+2Tr
+[(
+11w⊗W†
+A
+)
+V†
+ROVR (11w⊗WA)
+[
+11w⊗σν, (11w⊗WB)VLρV†
+L
+(
+11w⊗W†
+B
+)]]
+. (93)
+In order to compute the expectation value⟨∂νC⟩V we need to consider three diﬀerent scenarios: (1) when onlyWA
+is a 1-design; (2) when onlyWB is a 1-design; and (3) when bothWA and WB form 1-designs. We ﬁrst consider the
+case whenWA is a 1-design. SinceWA, WB, VR and VL are independent, we can compute the expectation value over
+the ansatz as⟨∂νC⟩V =⟨⟨∂νC⟩WA⟩VL,WB,VR. From (92) and the deﬁnition of a1-design in (51), we can compute
+⟨∂νC⟩WA =− i
+2Tr
+[
+(11w⊗WB)VLρV†
+L
+(
+11w⊗W†
+B
+)[
+11w⊗σν,
+∫
+dµ(WA) (11w⊗WA)V†
+ROVR
+(
+11w⊗W†
+A
+)]]
+=− i
+2Tr
+[
+(11w⊗WB)VLρV†
+L
+(
+11w⊗W†
+B
+)[
+11w⊗σν, 1
+2m Trw[V†
+ROVR]⊗11w
+]]
+=0, (94)
+where in the second equality we used Lemma 4.
+On the other hand, ifWB is a 1-design, we can now employ (93) to get
+⟨∂νC⟩WB =− i
+2Tr
+[(
+11w⊗W†
+A
+)
+V†
+ROVR (11w⊗WA)
+[
+11w⊗σν,
+∫
+dµ(WB) (11w⊗WB)VLρV†
+L
+(
+11w⊗W†
+B
+)]]
+=− i
+2Tr
+[(
+11w⊗W†
+A
+)
+V†
+ROVR (11w⊗WA)
+[
+11w⊗σν, 1
+2m Trw[VLρV†
+L ]⊗11w
+]]
+=0, (95)
+which follows from the same argument used to derive (94). Finally, from Eqs. (94) and (95), we have⟨∂νC⟩V =
+0 (∀VL,V R) ifWA and WB are both 1-designs.
+Supplementary Note 4: Variance of the cost function partial derivative
+In this section, we derive the formula for the variance of the cost function gradient. Namely,
+⟨(∂νC)2⟩V = 2m−1Tr[σ2
+ν]
+(22m− 1)2
+∑
+pq
+p′q′
+⣨
+∆Ωp′q′
+pq
+⟩
+VR
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+, (96)
+with
+∆Ωp′q′
+pq = Tr[ΩqpΩq′p′]− Tr[Ωqp]Tr[Ωq′p′]
+2m , (97)
+∆Ψp′q′
+pq = Tr[ΨpqΨp′q′]− Tr[Ψpq]Tr[Ψp′q′]
+2m , (98)
+and where
+Ωqp = Trw
+[
+(|p⟩⟨q|⊗ 11w)V†
+ROVR
+]
+, (99)
+Ψpq = Trw
+[
+(|q⟩⟨p|⊗ 11w)VLρV†
+L
+]
+. (100)
+Proof. As shown in the previous section,⟨∂νC⟩V = 0 when eitherWB or WA of (89) are 1-designs. Hence, we can
+compute the variance of∂νC as Var[∂νC] =⟨(∂νC)2⟩V−⟨∂νC⟩2
+V =⟨(∂νC)2⟩V. From (93) and Lemma 5 we have
+(∂νC)2 =−1
+4
+∑
+p,q
+p′,q′
+Tr
+[
+WAΩqpW†
+AΓpq
+]
+Tr
+[
+WAΩq′p′W†
+AΓp′q′
+]
+, (101)
+24
+with
+Γpq = Trw
+[
+(|q⟩⟨p|⊗ 11w)
+[
+11w⊗σν, (11w⊗WB)VLρV†
+L (11w⊗W†
+B)
+]]
+= Trw
+[
+[11w⊗σν, (11w⊗WB)(|q⟩⟨p|⊗ 11w)VLρV†
+L (11w⊗W†
+B)]
+]
+=
+[
+σν,W BTrw[(|q⟩⟨p|⊗ 11w)VLρV†
+L ]W†
+B
+]
+=
+[
+σν,W BΨpqW†
+B
+]
+. (102)
+As previously mentioned, ifWA,WB,VR andVL are independent, the expectation value of (101) can be computed
+as⟨(∂νC)2⟩V =⟨(∂νC)2⟩VL,WB,WA,VR. In addition, ifWA is a 2-design, we get from Lemma 3
+⟨(∂νC)2⟩WA =−1
+4
+∑
+p,q
+p′,q′
+∫
+dµ(WA)Tr
+[
+WAΩqpW†
+AΓpq
+]
+Tr
+[
+WAΩq′p′W†
+AΓp′q′
+]
+=−1
+4
+∑
+p,q
+p′,q′
+( 1
+22m− 1 (Tr[Ωqp]Tr[Γpq]Tr[Ωq′p′]Tr[Γp′q′] + Tr[ΩqpΩq′p′]Tr[ΓpqΓp′q′])
+− 1
+2m(22m− 1) (Tr[ΩqpΩq′p′]Tr[Γpq]Tr[Γp′q′] + Tr[Ωqp]Tr[Ωq′p′]Tr[ΓpqΓp′q′])
+)
+=− 1
+4(22m− 1)
+∑
+p,q
+p′,q′
+(
+Tr[ΩqpΩq′p′]− 1
+2m Tr[Ωqp]Tr[Ωq′p′]
+)
+Tr[ΓpqΓp′q′], (103)
+where in the third equality we used the fact that the trace of a commutator is zero:Tr[Γpq] = 0.
+If WB is also a2-design, then from (103) we need to compute the following expectation value
+⟨(∂νC)2⟩WB,WA =− 1
+4(22m− 1)
+∑
+p,q
+p′,q′
+(
+Tr[ΩqpΩq′p′]− 1
+2m Tr[Ωqp]Tr[Ωq′p′]
+)∫
+dµ(WB)Tr[ΓpqΓp′q′]. (104)
+Let us ﬁrst note that
+ΓpqΓp′q′ =
+[
+σν,W BΨpqW†
+B
+][
+σν,W BΨp′q′W†
+B
+]
+= 2
+(
+σνWBΨpqW†
+BσνWBΨp′q′W†
+B
+)
+− 2
+(
+WBσ2
+νW†
+BΨpqΨp′q′
+)
+. (105)
+This result can be used along with Lemmas 1 and 2 to compute the integral in (105) as
+∫
+dµ(WB)Tr[ΓpqΓp′q′] =2
+∫
+dµ(WB)Tr
+[
+σνWBΨpqW†
+BσνWBΨp′q′W†
+B
+]
+− 2
+∫
+dµ(WB)Tr
+[
+WBσ2
+νW†
+BΨpqΨp′q′
+]
+=− 2m+1
+22m− 1Tr[σ2
+ν]
+(
+Tr[ΨpqΨp′q′]− 1
+2m Tr[Ψpq]Tr[Ψp′q′]
+)
+, (106)
+where we used the fact thatσν is a Pauli operator, and hence its trace is equal to zero.
+Then, combining Eqs. (104) and (106), we obtain
+⟨(∂νC)2⟩V = 2m−1Tr[σ2
+ν]
+(22m− 1)2
+∑
+pq
+p′q′
+⣨
+∆Ωp′q′
+pq
+⟩
+VR
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+. (107)
+25
+Supplementary Note 5: Variance of the cost function partial derivative for a single
+layer of the Alternating Layered Ansatz
+In this section we explicitly evaluate Eqs. (96)–(98) for the special case whenV (θ) is composed of a single layer
+of the Alternating Layered Ansatz. This case is a generalization of the warm-up example of the main text, and
+constitutes the ﬁrst step towards our main theorems. In particular, we remark that the tools employed here are the
+same as the ones used to derive our main result.
+A. V ariance of global cost function partial derivative
+Let us ﬁrst recall that the global cost function isCG = 1− Tr
+[
+OVρV †]
+, whereO =⨂ξ
+k=1 ˆOk, and whereV (θ) is
+given by a single layer of the Alternating Layered Ansatz, i.e.,V (θ) =⨂ξ
+k=1Wk1 (θk). Moreover, we recall that we
+assume without loss of generality thatVR contains the gates inL and all the blocksWk1 in the last (and in this case
+only) layer ofV (θ). The latter means that hereVL = 11, andVR = 11h⊗
+(⨂
+k̸=hWk1 (θk)
+)
+. In addition, for simplicity,
+we have deﬁnedWk :=Wk1. Here,ξ is the total number of blocks so thatn =ξm, and we assume that the angleθν
+we want to train is in theh-th blockWh.
+1. Expectation value over VR
+First, let us computeΩqp. From (99), we obtain
+Ωqp = ˆOh
+ξ∏
+k̸=h
+Tr
+[
+W†
+kˆOkWk|pk⟩⟨qk|
+]
+. (108)
+Replacing this result in Eq. (97) and employing Lemma 3(ξ− 1)-times results in
+⣨
+∆Ωp′q′
+pq
+⟩
+VR
+= 1
+(22m− 1)ξ−1
+(
+Tr
+[
+ˆO2
+h
+]
+− 1
+2m Tr
+[
+ˆOh
+]2)
+×
+ξ∏
+k̸=h
+(
+δ(p,q)Sk
+δ(p′,q′)Sk
+(
+Tr
+[
+ˆOk
+]2
+− 1
+2m Tr
+[
+ˆO2
+k
+])
++δ(p′,q)Sk
+δ(p,q′)Sk
+(
+Tr
+[
+ˆO2
+k
+]
+− 1
+2m Tr
+[
+ˆOk
+]2))
+.
+Now, let us considerˆOk (k = 1, 2,··· ,ξ ) to be rank-1 projector, i.e. Tr
+[
+ˆOk
+]
+= Tr
+[
+ˆO2
+k
+]
+= rank
+[
+ˆOk
+]
+= 1. Therefore,
+we can obtain
+⣨
+∆Ωp′q′
+pq
+⟩
+VR
+= 1
+(22m− 1)ξ−1
+(
+1− 1
+2m
+)ξ ξ∏
+k̸=h
+(
+δ(p,q)Sk
+δ(p′,q′)Sk
++δ(p′,q)Sk
+δ(p,q′)Sk
+)
+. (109)
+2. Expectation value over VL
+Next, let us considerΨpq in (100). Here, we can setVL = 11, which leads toΨpq = Trh [(|p⟩⟨q|⊗ 11h)ρ]. Note that
+any quantum stateρ can be always written as
+ρ =
+∑
+λ
+pλ|ψλ⟩⟨ψλ|, with |ψλ⟩ =
+∑
+αλ
+cαλ|αλ
+1⟩⊗···⊗| αλ
+h⟩⊗···⊗| αλ
+ξ⟩, (110)
+whereα :=α1··· αξ, and whereαi are bitstrings of lengthm. Hence we ﬁnd
+Ψpq =
+∑
+λ
+pλ
+∑
+αλ,α′λ
+cαλc∗
+α′λ
+
+
+ξ∏
+k̸=h
+δ(q,αλ)kδ(p,α′λ)Sk
+
+|αλ
+h⟩⟨α′λ
+h|. (111)
+26
+Then, sinceVL = 11, we have
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+= ∆Ψp′q′
+pq , and we can use (111) to get
+∆Ψp′q′
+pq =
+∑
+λ,λ′
+pλpλ′
+∑
+αλ,α′λ
+βλ′
+,β′λ′
+cαλc∗
+α′λcβλ′c∗
+β′λ′
+
+
+ξ∏
+k̸=h
+δ(q,αλ)Sk
+δ(p,α′λ)Sk
+δ(q′,βλ′ )Sk
+δ(p′,β′λ′
+)Sk
+
+
+×
+(
+δ(α′λ,βλ′ )Sh
+δ(αλ,β′λ′
+)Sh
+− 1
+2mδ(αλ,α′λ)Sh
+δ(βλ′,β′λ′
+)Sh
+)
+.
+(112)
+Finally, from (109), (112), and the fact thatTr
+[
+σ2
+ν
+]
+= 2m, we obtain
+Var [∂νCG] = 22m−1
+(22m− 1)2(22m− 1)ξ−1
+(
+1− 1
+2m
+)ξ∑
+λ,λ′
+pλpλ′
+∑
+αλ,α′λ
+βλ′
+,β′λ′
+cαλc∗
+α′λcβλ′c∗
+β′λ′
+×
+(
+δ(α′λ,βλ′ )Sh
+δ(αλ,β′λ′
+)Sh
+− 1
+2mδ(αλ,α′λ)Sh
+δ(βλ′,β′λ′
+)Sh
+)∏
+k̸=h
+(
+δ(αλ,α′λ)Sk
+δ(βλ′,β′λ′
+)Sk
++δ(αλ,β′λ′
+)Sk
+δ(α′λ,βλ′ )Sk
+)
+,
+where we used the fact that
+∑
+pq
+p′q′
+
+
+ξ∏
+k̸=h
+(
+δ(p,q)Sk
+δ(p′,q′)Sk
++δ(p′,q)Sk
+δ(p,q′)Sk
+)
+δ(q,αλ)Sk
+δ(p,α′λ)Sk
+δ(q′,βλ′ )Sk
+δ(p′,β′λ′
+)Sk
+
+
+=
+∏
+k̸=h
+(
+δ(αλ,α′λ)Sk
+δ(βλ′,β′λ′
+)Sk
++δ(αλ,β′λ′
+)Sk
+δ(α′λ,βλ′ )Sk
+)
+.
+Let us deﬁne
+J :=
+∑
+λ,λ′
+pλpλ′
+∑
+αλ,α′λ
+βλ′
+,β′λ′
+cαλc∗
+α′λcβλ′c∗
+β′λ′
+×
+(
+δ(α′λ,βλ′ )Sh
+δ(αλ,β′λ′
+)Sh
+− 1
+2mδ(αλ,α′λ)Sh
+δ(βλ′,β′λ′
+)Sh
+)∏
+k̸=h
+(
+δ(αλ,α′λ)Sk
+δ(βλ′,β′λ′
+)Sk
++δ(αλ,β′λ′
+)Sk
+δ(α′λ,βλ′ )Sk
+)
+,
+which, has the form ofJ = 1− 1
+2m +∑2ξ−1−1
+l=1
+(
+AL− 1
+2mBL
+)
+, whereAL,BL are the purities of reduced states ofρ. The
+latter can be understood in the following way. Let us deﬁne the setS ={S1,S 2,··· ,Sξ}, whose elements represents
+each block. Then, suppose that we want to consider the partial trace ofρ over several subsystemsHK, whereK⊂S .
+The reduced state lives in the composite Hilbert spaceHK, whereK =S\ K, and we can writeα :=αK·αK. Let
+us deﬁne the reduced state asρK := TrK [ρ], and its purity can be explicitly written as
+Tr
+[
+ρ2
+K
+]
+=
+∑
+λ,λ′
+pλpλ′
+∑
+αλ,βλ′
+cαλc∗
+αλ
+K·βλ′
+K
+cβλ′c∗
+αλ
+K·βλ′
+K
+,
+which appears in the expression ofJ. Since Tr
+[
+ρ2
+K
+]
+⩽ 1, we haveJ <2ξ−1; therefor, we can write
+Var [∂νCG]< 22m−2
+(22m− 1)22mξ−ξ(1 + 2−m)ξ < 1
+2(2− 1
+m)n
+(∀m∈ N), (113)
+where in the last inequality we used the fact thatn = mξ. Equation (113) shows that for the single layer of the
+alternating layered ansatz the global cost functions presents a barren plateau.
+B. V ariance of the local cost function partial derivative
+Here we consider the case whenV (θ) is given by a single layer of the Alternating Layered Ansatz, and when the
+local cost function is
+CL = 1− 1
+n
+n∑
+j=1
+Tr
+[(
+|0⟩⟨0|j⊗11j
+)
+VρV †
+]
+.
+27
+with OL = 1
+n
+∑n
+j=1|0⟩⟨0|j⊗ 11j, and wherej denotes thej-th qubit. Moreover, let us assume that we are training
+a parameterθν in h-th block. This case is simpler than the one previously considered for the global cost function
+as the gradient is non vanishing only when we measure a qubitj in Sh. We can then redeﬁneOh
+L :Hh→H h as
+ˆOh
+L = 1
+n
+∑m
+j=1|0⟩⟨0|j⊗11j, where eachj is such thatj∈Sh. Then, from (107) we have
+Tr
+[
+ˆOh
+L
+]
+= m2m−1
+n , Tr
+[(
+ˆOh
+L
+)2]
+= m(m + 1)2m−2
+n2 . (114)
+From (99),Ωqp can be written asΩqp =δpqWhOh
+LW†
+h, which leads to
+∆Ωp′q′
+pq = m2m−2
+n2 δpqδp′q′. (115)
+Next, from (100) we haveΨpq = Trh [(|q⟩⟨p|⊗ 11h)ρ], and it is straightforward to see that
+∑
+pq
+δpqΨpq =
+∑
+pq
+δpqTrh [(|q⟩⟨p|⊗ 11h)ρ] =ρh, (116)
+where we deﬁnedρh := Trh [ρ]. Then, from (107), and by using
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+= ∆Ψp′q′
+pq , and Tr[σ2
+ν] = 2m, we can
+write
+Var [∂νCL] = m23(m−1)
+n2(22m− 1)2
+(
+Tr[ρ2
+h]− 1
+2m
+)
+= m· 23(m−1)
+n2(22m− 1)2DHS
+(
+ρh, 11
+2m
+)
+,
+whereDHS (ρh,11/2m) = Tr[(ρh−11/2m)2] is the Hilbert-Schmidt distance betweenρh and 11/2m. IfDHS (ρh,11/2m)∈
+Ω (1/ poly(n)), we have that the variance of the cost function partial derivative is polinomially vanishing withn as
+Var[∂νCL]∈ Ω
+( 1
+poly(n)
+)
+, (117)
+and hence in this caseCL presents no barren plateau.
+Supplementary Note 6: Proof of Theorem 2
+First, let us recall that we are consideringm-local cost functions where each operator Oi acts nontrivially on
+m qubits Oi = 11m⊗ ˆOi (here 11m indicates the identity on all butm qubits), and where ˆOi can be expressed as
+ˆOi = ˆOµi
+i ⊗ ˆOµ′
+i
+i . Hence, we have
+O =c011 +
+N∑
+i=1
+ciˆOµi
+i ⊗ ˆOµ′
+i
+i , (118)
+where ˆOµi
+i are operators acting onm/2 qubits which can be written as tensor product of Pauli operators. Here we
+recall that we have deﬁnedSk as them-qubit subsystem on whichWkL acts and letS ={Sk} be the set of all such
+subsystems. As detailed in the main text the summation in Eq. (118) includes two possible cases: First, whenˆOµi
+i
+(ˆOµ′
+i
+i ) acts on the ﬁrst (last)m/2 qubits of a givenSk, and second, whenˆOµi
+i (ˆOµ′
+i
+i ) acts on the last (ﬁrst)m/2 qubits
+of a givenSk (Sk+1). This type of cost function includes any ultralocal (i.e., where theOi are one-body) cost function,
+and also VQE Hamiltonians with up tom/2 neighbor interactions.
+Here we provide a proof of Theorem2 in the main text, which we now reiterate for convenience.
+Theorem 2. Consider a trainable parameterθν in a blockW of the ansatz in Fig. 3 of the main text. LetVar[∂νC]
+be the variance of the partial derivative of anm-local cost functionC (with O given by (118)) with respect toθν. If
+WA, WB of (89), and each block inV (θ) form a local2-design, then Var[∂νC] is lower bounded by
+Gn(L,l ) ⩽ Var[∂νC], (119)
+28
+with
+Gn(L,l ) = 2m(l+1)−1
+(22m− 1)2(2m + 1)L+l
+∑
+i∈iL
+∑
+(k,k′)∈kLB
+k′⩾k
+c2
+iϵ(ρk,k′)ϵ(ˆOi), (120)
+whereiL is the set ofi indices whose associated operatorsˆOi act on qubits in the forward light-coneL ofW, andkLB
+is the set ofk indices whose associated subsystemsSk are in the backward light-coneLB of W. Here we deﬁned the
+function ϵ(M) = DHS (M, Tr(M)11/dM) where DHS is the Hilbert-Schmidt distance anddM is the dimension of the
+matrix M. In addition,ρk,k′ is partial trace of the input stateρ down to the subsystemsSkSk+1...Sk′.
+Proof. Let us ﬁrst consider the case when the operatorsOi are of the form (118) and act non trivially in a given
+subsystem ofS. We can expand
+Var[∂νC] = 2m−1Tr[σ2
+ν]
+(22m− 1)2
+∑
+i,j
+∑
+pq
+p′q′
+cicj
+⟨
+Tr[Ωi
+qpΩj
+q′p′]−
+Tr[Ωi
+qp]Tr[Ωj
+q′p′]
+2m
+⟩
+VR
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+, (121)
+where we deﬁned
+Ωi
+qp = Trw
+[
+(|p⟩⟨q|⊗ 11w)V†
+ROiVR
+]
+. (122)
+1. Expectation value over VR
+We recall here that we assume without loss of generality thatVR contains the gates inL and all the blocksWkL in
+the last layer ofV (θ). Hence, we can express
+VR =VL⊗VL, (123)
+where VL contains all the blocks in the forward light-coneL of W, and whereVL consists of all the remaining blocks
+in the last layer of the ansatz. When analyzing the operatorsΩi
+pq we have to consider two cases: 1) whenOi only
+acts non-trivially on qubits inSL, and 2) whenˆOi acts non-trivially on qubits inSL. IfOi only acts non-trivially on
+qubits inSL, it is straightforward to show from (122) thatΩi
+pq∝ 11w. Hence, in this case, we ﬁnd
+Tr[Ωi
+qpΩj
+q′p′]−
+Tr[Ωi
+qp]Tr[Ωj
+q′p′]
+2m = 0. (124)
+Let us then deﬁneiL as the set ofi indices whose associated operatorsOi act on qubits in the forward light-coneL
+ofW. In what follows we assume that the indexesi,j ∈iL, i.e., we assume thatOi andOj act non-trivially on qubit
+in SL. The latter leads to
+⟨
+Tr[Ωi
+qpΩj
+q′p′]−
+Tr[Ωi
+qp]Tr[Ωj
+q′p′]
+2m
+⟩
+VR
+=δ(p,q)SL
+δ(p′,q′)SL
+⟨
+Tr[Ωi
+qpΩj
+q′p′]−
+Tr[Ωi
+qp]Tr[Ωj
+q′p′]
+2m
+⟩
+VL
+. (125)
+Here the delta functions arise from (122) by noting thatV†
+ROiVR =V†
+LOiVL.
+In order to explicitly evaluate the expectation value in (125) we use the fact that each block in the layered ansatz is
+a 2-design, and hence one can algorithmically integrate over each block using the Weingarten calculus. Speciﬁcally, as
+discussed in the main text we employ the tensor network representation ofTr[Ωi
+qpΩi
+q′p′] and Tr[Ωi
+qp]Tr[Ωj
+q′p′], and we
+use theRandom Tensor Network Integrator (RTNI) package of Ref. [60], which allows for the computation of averages
+of tensor networks containing multiple Haar-distributed random unitary matrices and deterministic symbolic tensors.
+Using this procedure,⟨... ⟩VL can be computed by integrating over each block inside ofVL over the unitary group
+with respect to the Haar measure. After each integration the result of the average is a sum of up to four new tensor
+according to (53), and Lemmas 2 and 3. After all the blocks inVL have been integrated, the ﬁnal result can be
+expressed as
+⟨
+Tr[Ωi
+qpΩj
+q′p′]−
+Tr[Ωi
+qp]Tr[Ωj
+q′p′]
+2m
+⟩
+VL
+=
+∑
+τ
+tij
+τ δ(p,q)Sτ
+δ(p′,q′)Sτ
+δ(p,q′)Sτδ(p′,q)Sτ ∆Oij
+τ , (126)
+29
+Supplementary Figure 1. Schematic representation of the method employed to derive Eq. (126). Here we consider the case
+when Oi and Oj act nontrivially only on the topmostm qubits inVL. (a) Tensor-network representation of the termΩi
+qp. All
+butL−l blocks inVL simplify to identity when computingV†
+LOiVL. One can always deﬁne operatorsO(1)
+i , andO(1)
+j such that
+Eq. (128) holds. HereW12 is the topmost block in the ﬁrst layer ofVL, and we deﬁneP 1
+pq as a projector operator acing on
+m/2 qubits. (b) Tensor-network representation of the operatorO(1)
+i . Note that fromO(1)
+i we can also deﬁne an operatorO(2)
+i
+which will be of the same form asO(1)
+i . (c) By means of the Weingarten calculus we can integrate overW12 to compute the
+expectation value of Eq. (128). The result is a single tensor. This result can be obtained by employing Eq. (73) of Lemma 6.
+(d) In order the integrate the next block we use the operatorsO(2)
+i to express the tensor networks in a form that coincides with
+panel (c). We can then repeat this procedureL−l times in order to integrate over all blocks and compute the expectation
+value in (125). The ﬁnal result is of the form of Eq. (129).
+where tτ∈ R, Sτ∪Sτ =SL∩Sw (with Sτ̸=∅), and where we have deﬁned
+∆Oij
+τ = Trxτyτ [Trzτ [Oi] Trzτ [Oj]]− Trxτ [Tryτzτ [Oi] Tryτzτ [Oj]]
+2m . (127)
+Here we use the notationTrxτ to indicate the trace over the Hilbert space associated with subsystemSxτ. We also
+deﬁneSL ={Sk :Sk⊂SL} as the set of subspacesSk which belong to the light-coneL, so that we haveSyτ∈SL,
+Sxτ∪Syτ∪Szτ = SL, andSxτ,Szτ∈P (SL), withP(SL) ={∅,S 1,...,S ξ,S 1∪S2...} the power set ofSL. If one
+chooses Szτ =∅ (or Sxτ =∅), with associated Hilbert spaceH0 ={0}, we deﬁneTr∅ [O] :=O.
+Equation (126) can be derived by iteratively applying Lemma 6 each time a block inVL is integrated in (125), and
+noting that at each integration the resulting tensor can always be written in a way such that Lemma 6 can be applied
+again. As an example, let us consider the case whenOi and Oj act nontrivially only on the topmostm qubits in
+VL. As shown in Sup. Fig. 1(a), all butL−l blocks inVL simplify to identity when computingV†
+LOiVL. Then, let
+us denote byW12 the topmost gate in the ﬁrst layer inVL, and let˜S1, ˜S2 be the sets ofm/2 adjacent qubits (with
+associated Hilbert spaces˜H1, ˜H2) such thatW12 acts on ˜H1⊗ ˜H2, and such that˜S2⊂Sw. One can always write
+⟨
+Tr[Ωi
+qpΩj
+q′p′]−
+Tr[Ωi
+qp]Tr[Ωj
+q′p′]
+2m
+⟩
+VL
+∝
+⟨
+Tr ˜H2
+[
+Tr ˜H1
+[Ω1]Tr ˜H1
+[Ω′
+1]
+]
+− Tr[Ω1]Tr[Ω′
+1]
+2m
+⟩
+VL
+, (128)
+with Ω1 =W12O(1)
+i W†
+12(|p⟩⟨q| ˜S1
+⊗ 11 ˜S2
+), Ω′
+1 =W12O(1)
+j W†
+12(|p′⟩⟨q′| ˜S1
+⊗ 11 ˜S2
+), and whereO(1)
+i , andO(1)
+j are deﬁned
+30
+according to Sup. Fig. 1(a). The proportionallity factor in Eq. (128) is given by delta functions overp, and q.
+Moreover, the right-hand side of (128) is exactly of the form (66), and hence by applying Lemma 6 (or more speciﬁcally,
+Eq. (73)) one ﬁnds the result of Sup. Fig. 1(c). As schematically depicted in Sup. Fig. 1(b), one can then deﬁne
+operators O(2)
+i and repeat this calculationL−l times as in Sup. Fig. 1(d). One ﬁnally ﬁnds
+⟨
+Tr[Ωi
+qpΩj
+q′p′]−
+Tr[Ωi
+qp]Tr[Ωj
+q′p′]
+2m
+⟩
+VL
+∝ 2m(L−l)/2
+(2m + 1)L−l
+(
+Tr [OiOj]− Tr [Oi] Tr [Oj]
+2m
+)
+, (129)
+where once again the proportionally factor is given by delta functions overp andq. For more general operatorsOi
+and Oj, each time a block is integrated, one can always rewrite the resulting non-trivial terms in the form of either
+Eq. (66), or Eq. (70). Remarkably, this means that the ﬁnal result can always be expressed in terms of contractions
+of the form (127), and hence Eq. (126) holds.
+As previously mentioned, Eq. (126) is valid for arbitrary operatorsOi and Oj. However, from Lemma 7 we know
+that ifOi and Oj have no overlapping support, then∆Oij
+τ = 0, for allτ. Hence we only have to consider the cases
+wheni =j. Moreover, ifˆOi act non trivially in a given subsystem ofS the summation in Eq. (126) simpliﬁes and we
+ﬁnd
+⟨
+Tr[Ωi
+qpΩj
+q′p′]−
+Tr[Ωi
+qp]Tr[Ωj
+q′p′]
+2m
+⟩
+VL
+=ϵ(ˆOi)
+∑
+τ
+ˆtii
+τδ(p,q)Sτ
+δ(p′,q′)Sτ
+δ(p,q′)Sτδ(p′,q)Sτ , (130)
+where we now denote the coeﬃcients asˆtii
+τ since we now haveˆtii
+τ ⩾ 0, and where
+ϵ(ˆOi) = Tr
+[
+ˆO2
+i
+]
+−
+Tr
+[
+ˆOi
+]2
+2m =DHS
+(
+ˆOi, Tr[ˆOi] 11
+2m
+)
+. (131)
+Moreover, we also ﬁnd that the following inequality holds∀i
+∑
+τ
+ˆtii
+τ ⩾ 2m(L−l)/2
+(2m + 1)L−l , (132)
+where we recall thatL is the number of layers in the ansatz, and that the blockW is in thelth-layer ofV (θ).
+Combining Eqs. (121) and (130), we ﬁnd
+Var[∂νC] = 2m−1Tr[σ2
+ν]
+(22m− 1)2
+∑
+pq
+p′q′
+∑
+i∈iL
+c2
+iϵ(ˆOi)
+∑
+τ
+ˆtii
+τδ(p,q)SL∪Sτ
+δ(p′,q′)SL∪Sτ
+δ(p,q′)Sτδ(p′,q)Sτ
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+. (133)
+Before proceeding to compute the expectation value overVL, let us analyze the lower bound in (132). For simplicity
+of notation, let us deﬁneTτ :=∑
+τ ˆtii
+τ. In what follows we compareTτ for two relevant (and extremum) cases: 1)
+whenOi acts nontrivially on the topmostm qubits inVL (see panel (a) of Fig. (2)), and 2) whenOi acts nontrivially
+on Sw (see panel (b) of Fig. (2)). As discussed below,Tτ is larger for Case 2, that for Case 1.
+As schematically depicted in Sup. Fig. (2)(a), for Case 1 one needs to integrate over(L−l) blocks, and we know
+from Eq. (129) (and Sup. Fig. 1) that
+Tτ = 2m(L−l)/2
+(2m + 1)L−l . (134)
+On the other hand, for Case 2 one needs to integrate over(L−l)(L−l + 2)/4 blocks. While a closed formula cannot
+be derived for this case, we can explicitly integrate over each block to obtain:
+Tτ =
+
+
+
+23m/2(1+2m/2)2
+(1+2m)3 if L−l = 2
+22m(1+2m/2)2(1+2m/2+2m)
+1+d2)5 if L−l = 3
+25m/2(1+2m/2+2m)(1+2m/2(3+2m/2(8+2m/2(3+2m/2))))
+(1+2m)7 if L−l = 4
+23m(1+2m/2(2+2m/2(4+2m/2(2+2m/2))))(1+2m/2(3+2m/2(8+2m/2(3+2m/2))))
+(1+2m)9 if L−l = 5
+. (135)
+For all cases we can see from Sup. Fig. (2)(c) that the values ofTτ for Case 2 are larger than the ones obtained for
+Case 1.
+31
+Supplementary Figure 2. a) Schematic representation of Case 1. The operatorOi acts nontrivially on them topmost qubits
+inVL. Note that this scenario corresponds to the one analyzed in Sup. Fig. 1. Here one needs to integrate over(L−l) blocks.
+The arrows indicate the tensor indexes that, when contracted after integrating over each block, will lead to delta functions in
+p andq. b) Schematic representation of Case 2. The operatorOi acts non trivially onSw. Here one needs to integrate over
+(L−l)(L−l + 2)/4 blocks. For the case ofL odd, the operatorOi acts nontrivially on the topm/2 qubits ofSw and them/2
+qubits above those. The arrows indicate the tensor indexes that, when contracted after integrating over each block, will lead to
+either delta functions inp andq, or to traces over the identity onm/2 qubits. c) Solid lines represent the value ofTτ versusm
+for Case 2 in panel b) (i.e., from Eq. (135)). Dashed lines represent the value ofTτ versusm for Case 1 in panel a) (i.e., from
+Eq. (134)). They axis is shown in a logarithmic scale. For all values of(L−l) considered the values ofTτ Case 2 are larger
+that those Case 1. For a given value of(L−l) the diﬀerence between values ofTτ in (134) and in (135) scales as1/2m(L−l−1)/2.
+The previous explains why asm increases we the dashed line for(L−l) converges to the solid line with(L−l + 1).
+The latter can be understood from two key facts. First, that while integrating over a block leads to coeﬃcients
+smaller than one according to (53), the more blocks one integrates over, the more contributions we get forϵ(ˆOi).
+Second, from the fact that in Case 2 the integration over some blocks will lead to multiplicative factors2m/2 which
+will compensate the factors from (53). These large factors2m/2 essentially arise when integrating blocks inVL which
+act on qubits which one does not measure, and which hence lead to traces over the identity overm/2 qubits. Note that
+these factors do not arise in Case I. In Sup. Fig. (2)(a) we have schematically indicated by arrows the indexes that
+will lead to delta functions inp andq after each block is integrated. Each time we integrate a block containing these
+indexes one obtains tensor contractions of|p⟩⟨q|. On the other hand, for Case 2, one will not only get these tensor
+contractions inp and q, but as indicated in Sup. Fig. (2)(b) we have also indexes that will lead to identity-tensor
+contractions and hence to factors2m/2.
+In fact, for a givenL the diﬀerence between theTτ in (134) and in (135) scales as1/2m(L−l−1)/2, which means
+that as (L−l) increases the inequality in (132) becomes tighter. Finally, we remark that the previous explains why
+in Fig. (2)(c) the values ofTτ from Case 1 and ﬁxed(L−l) converge to the values of Case 2 and(L−l + 1).
+2. Expectation value over VL
+Let us now consider the term
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+=
+⟨
+Tr[ΨpqΨp′q′]− Tr[Ψpq]Tr[Ψp′q′]
+2m
+⟩
+VL
+. (136)
+Since the bitstringp (q) can be expressed as a bit-wise concatenation of the formp = (p)SL∪Sτ· (p)Sτ (and similarly
+forq), we can ﬁrst evaluate
+∑
+(pq)SL∪Sτ
+δ(p,q)SL∪Sτ
+Ψqp = Trτ [(|p⟩⟨q|Sτ⊗11w)˜ρWk ] , (137)
+where Trτ is the partial trace over the Hilbert spaceHτ of the qubits inSτ, and where we deﬁned
+˜ρWk = TrL∪τ[VLρV†
+L ], (138)
+32
+as the reduced state ofVLρV†
+L onHw⊗Hτ. Then, from the termδ(p,q′)Sτδ(p′,q)Sτ in (133), we get
+∑
+(pq)Sτ
+δ(p,q′)Sτδ(p′,q)Sτ
+(
+Tr[ΨpqΨqp]− Tr[Ψpq]Tr[Ψqp]
+2m
+)
+=DHS
+(
+˜ρwτ, ˜ρτ⊗ 11
+2m
+)
+, (139)
+where DHS (ρ,σ ) = Tr[(ρ−σ)2] is the Hilbert-Schmidt distance, and where we deﬁned
+˜ρτ = Trw(˜ρwτ ), and ˜ρw = Trτ(˜ρwτ ) = Trw
+[
+VLρV†
+L
+]
+, (140)
+as the reduces states ofVLρV†
+L on subsystemHτ, andHw, respectively. Equation (139) quantiﬁes how far˜ρwτ is from
+being a tensor product state where the state on subsystemSw is maximally mixed. Evidently, if ˜ρw is maximally
+mixed then it will be impossible to train any angle inW.
+Let us now analyze the following chain of inequalities valid for the Hilbert-Schmidt distanceDHS
+(
+˜ρwτt, ˜ρτt⊗ 11
+2m
+)
+and any choice ofSτ:
+DHS
+(
+˜ρwτt, ˜ρτt⊗ 11
+2m
+)
+⩾
+4DT
+(
+˜ρwτt, ˜ρτt⊗ 11
+2m
+)2
+2mdτ
+(141)
+⩾
+4DT
+(
+˜ρw, 11
+2m
+)2
+2m(L−l+2)/2
+⩾
+DHS
+(
+˜ρw, 11
+2m
+)
+2m(L−l+2)/2 , (142)
+with DT (A,B ) = Tr
+[√
+(A−B)2
+]
+the Trace Distance between the Hermitian operatorsA and B. In the ﬁrst line
+we employ the matrix norm equivalence, and we denote asdτ the dimension ofHτ. The second line is derived from
+the fact that the Trace Distance is non-increasing over partial trace [61], and from the fact thatdτ ⩽ 2m(L−l)/2∀τ.
+Finally, the inequality in (142) employs again the matrix norm equivalence. From Eqs. (142), and (133), we ﬁnd that
+the following lower bound holds
+Var[∂νC] ⩾ Tr[σ2
+ν]
+2(22m− 1)2(2m + 1)L−l
+∑
+i∈iL
+c2
+iϵi
+⟨
+DHS
+(
+˜ρw, 11
+2m
+)⟩
+VL
+. (143)
+Following a similar procedure as the one previously employed to compute expectation values overVR, we can once
+again leverage the tensor network representation of quantum circuits to algorithmically integrate over each block
+and compute⟨DHS
+(
+˜ρW, 11
+2m
+)
+⟩VL. After considering that all the blocks inVL which are not in the backpropagated
+light-cone ofW will simplify to identity, we ﬁnd
+⟨
+DHS
+(
+˜ρw, 11
+2m
+)⟩
+VL
+=
+∑
+(k,k′)∈kLB
+k′⩾k
+tk,k′ϵ(ρk,k′), (144)
+wheretk,k′ ⩾ 0, and wherekLB is the set ofk indices whose associated subsystemsSk are in the backward light-cone
+LB ofW. Here we deﬁned the functionϵ(M) =DHS (M, Tr(M)11/dM) whereDHS is the Hilbert-Schmidt distance and
+dM is the dimension of the matrixM. In addition,ρk,k′ is partial trace of the input stateρ down to the subsystems
+SkSk+1...Sk′. In addition, we ﬁnd that the following inequality holds∀k,k′
+tk,k′ ⩾ 2ml
+(2m + 1)2l . (145)
+Hence, we haveVar[∂νC] ⩾Gn(L,l ), where
+Gn(L,l ) = 2m(l+1)−1
+(22m− 1)2(2m + 1)L+l
+∑
+i∈iL
+∑
+(k,k′)∈kLB
+k′⩾k
+c2
+iϵ(ρk,k′)ϵ(ˆOi), (146)
+33
+where we used the fact thatTr[σ2
+ν] = 2m.
+This result can be trivially generalized to the case whenˆOi and ˆOj are of the general form in Eq. (118) such that
+they can have overlapping support on at mostm/2 qubits. Then, from (127) it is straightforward to see that∆Oij
+τ = 0
+for allτ, i, andj, as one would always have to compute traces of the formTr[ˆOµi
+i ], which vanish sinceˆOµi
+i can be
+written as a tensor product of Pauli operators.
+Supplementary Note 7: Proof of Theorem 1
+The following theorem provides an upper bound on the variance of the partial derivative of a global cost function
+which can be expressed as the expectation value of an operator of the form
+O =c011 +
+N∑
+i=1
+ciˆOi1⊗ ˆOi2⊗···⊗ ˆOiξ. (147)
+Speciﬁcally, we consider two cases of interest: (i) WhenN = 1 and eachˆO1k is a non-trivial projector (ˆO2
+1k = ˆO1k̸= 11)
+of rankrk acting on subsystemSk, or (ii) WhenN is arbitrary andˆOik is traceless withTr[ˆO2
+ik] ⩽ 2m (for example,
+when ˆOik = ⨂m
+j=1σµ
+j is a tensor product of Pauli operatorsσµ
+j ∈{ 11j,σx
+j,σy
+j,σz
+j}, with at least oneσµ
+j ̸= 11). In
+Section 7A we ﬁrst consider case (i), while in Section 7B we prove Theorem 1 for case (ii).
+We now reiterate Theorem 1 for convenience:
+Theorem 1. Consider a trainable parameterθν in a blockW of the ansatz in Fig. 3 of the main text. LetVar[∂νC]
+be the variance of the partial derivative of a global cost functionC (with O given by (147)) with respect toθν. If
+WA, WB of (89), and each block inV (θ) form a local2-design, then Var[∂νC] is upper bounded by
+Var[∂νC] ⩽Fn(L,l ). (148)
+(i) ForN = 1 and when eachˆO1k is a non-trivial projector, then deﬁningR =∏ξ
+k=1r2
+k, we have
+Fn(L,l ) = 22m+(2m−1)(L−l)
+(22m− 1)· 3
+n
+m· 2(2− 3
+m )nc2
+1R. (149)
+(ii) For arbitraryN and when eachˆOik satisﬁesTr[ˆOik] = 0 and Tr[ˆO2
+ik] ⩽ 2m, then
+Fn(L,l ) = 22m(L−l+1)+1
+3
+2n
+m· 2(3− 4
+m)n
+N∑
+i,j=1
+cicj. (150)
+A. N = 1, and ˆO1k is a non-trivial projector
+For simplicity, let us now useˆOk when refering to the operatorsˆOik. Let us ﬁrst consider the case when eachˆOk
+is a non-trivial projector (ˆO2
+k = ˆOk) of rankrk acting on subsystemSk:
+rk := Tr
+[
+ˆOk
+]
+= Tr
+[
+ˆO2
+k
+]
+= rank
+[
+ˆOk
+]
+. (151)
+Proof. In the previous section, we deﬁnedVR as containing all gates in the forward light-coneL of W and all the
+gates in the last layer of the ansatz. Hence, we can expressVR =VL⊗VL, whereVL :HL→HL is given by
+VL =
+⨂
+k∈kL
+WkL, (152)
+where wherekL is the set ofk indices whose associated subsystems of qubitsSk are outside of the forward light-cone
+L of W. One can always write|q⟩⟨p|⊗ 11w as a projector ontoHL times a projector ontoHL:
+|q⟩⟨p|⊗ 11w =
+
+⨂
+k∈kL
+|q⟩⟨p|k
+
+⊗|q⟩⟨p|L⊗11w. (153)
+34
+Combining (99) with Eqs. (152) and (153) leads to
+Ωqp =
+
+∏
+k∈kL
+Trk
+[
+|p⟩⟨q|kW†
+kLˆOkWkL
+]
+
+ ΩL
+qp, (154)
+where
+ΩL
+qp = TrL∩w
+[
+(|p⟩⟨q|⊗ 11w)VLOLVL
+]
+, (155)
+and whereOL =⨂
+k∈kL
+ˆOk. Here Trk indicates the trace overHk, while TrL∩w is the trace over the Hilbert space
+associated with the qubits inSL∩Sw.
+In order to explicitly evaluate the expectation value⟨... ⟩VR in
+Var[∂νC] = 2m−1Tr[σ2
+ν]
+(22m− 1)2 c2
+1
+∑
+pq
+p′q′
+⟨(
+Tr[ΩqpΩq′p′]− Tr[Ωqp]Tr[Ωq′p′]
+2m
+)⟩
+VR
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+, (156)
+we use the fact that the blocks inV (θ) are independent, and hence⟨... ⟩VR =⟨... ⟩VL,VL. Then, we have
+⟨
+Tr[ΩqpΩq′p′]− Tr[Ωqp]Tr[Ωq′p′]
+2m
+⟩
+VR
+=
+⟨
+Tr[ΩL
+qpΩL
+q′p′]−
+Tr[ΩL
+qp]Tr[ΩL
+q′p′]
+2m
+⟩
+VL
+
+ ∏
+k/Sk⊂SL
+⟨Ωk⟩WkL
+
+ , (157)
+with
+Ωk = Trk
+[
+|p⟩⟨q|kW†
+kLˆOkWkL
+]
+Trk
+[
+|p′⟩⟨q′|kW†
+kLˆOkWkL
+]
+. (158)
+Let us ﬁrst compute the expectation value of eachΩk. From Lemma 3, we have:
+⟨Ωk⟩WkL
+= rk
+22m− 1
+((
+rk− 1
+2m
+)
+δ(p,q)Sk
+δ(p′,q′)Sk
++
+(
+1− rk
+2m
+)
+δ(p,q′)Sk
+δ(p′,q)Sk
+)
+⩽ 1
+22m− 1r2
+k
+(
+δ(p,q)Sk
+δ(p′,q′)Sk
++δ(p,q′)Sk
+δ(p′,q)Sk
+)
+, (159)
+where in the inequality we have dropped the negative terms and used the fact thatrk ⩽r2
+k. Then, we have
+∏
+k∈kL
+⟨Ωk⟩WkL
+⩽ 1
+(22m− 1)ξL
+∏
+k∈kL
+r2
+k
+(
+δ(p,q)Sk
+δ(p′,q′)Sk
++δ(p,q′)Sk
+δ(p′,q)Sk
+)
+.
+Combining this result with Eq. (156) leads to the upper bound
+Var[∂νC] ⩽ 2m−1Tr[σ2
+ν]
+(22m− 1)2(22m− 1)ξL
+c2
+1
+∑
+pq
+p′q′
+(⟨
+Tr[ΩL
+qpΩL
+q′p′]−
+Tr[ΩL
+qp]Tr[ΩL
+q′p′]
+2m
+⟩
+VL
+×
+
+∏
+k∈kL
+r2
+k
+(
+δ(p,q)Sk
+δ(p′,q′)Sk
++δ(p,q′)Sk
+δ(p′,q)Sk
+)
+
+
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+)
+.
+(160)
+As discussed in the previous section, one can compute the expectation values in Eq. (160) by systematically inte-
+grating over each block over the unitary group with the respect to the Haar measure. From Eq. (126) we can ﬁnd
+Var[∂νC] ⩽ 2m−1Tr[σ2
+ν]
+(22m− 1)2(22m− 1)ξL
+c2
+1
+∑
+pq
+p′q′
+∑
+τ
+(
+tτδ(p,q)Sτ
+δ(p′,q′)Sτ
+δ(p,q′)Sτδ(p′,q)Sτ ∆Oτ
+×
+
+∏
+k∈kL
+r2
+k
+(
+δ(p,q)Sk
+δ(p′,q′)Sk
++δ(p,q′)Sk
+δ(p′,q)Sk
+)
+
+
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+)
+.
+(161)
+35
+Note that by expanding the product∏
+k∈kL
+(
+δ(p,q)Sk
+δ(p′,q′)Sk
++δ(p,q′)Sk
+δ(p′,q)Sk
+)
+δ(p,q)Sτ
+δ(p′,q′)Sτ
+δ(p,q′)Sτδ(p′,q)Sτ,
+one obtains a sum of2ξL terms, and according to Eqs. (136)–(139), each term in the summation leads to a Hilbert-
+Schmidt distances between two quantum states. Then, sinceDHS (ρ1,ρ 2) ⩽ 2 for any pair of statesρ1, ρ2, we ﬁnd
+∑
+pq
+p′q′
+δ(p,q)Sτ
+δ(p′,q′)Sτ
+δ(p,q′)Sτδ(p′,q)Sτ
+
+∏
+k∈kL
+(
+δ(p,q)Sk
+δ(p′,q′)Sk
++δ(p,q′)Sk
+δ(p′,q)Sk
+)
+
+
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+⩽ 2· 2ξL. (162)
+Replacing this result in (161) leads to
+Var[∂νC] ⩽ 2m2ξLTr[σ2
+ν]
+(2m− 1)2(22m− 1)ξL
+c2
+1
+
+∏
+k∈kL
+r2
+k
+
+∑
+τ
+tτ∆Oτ. (163)
+Next, we consider the terms∆Oτ. From Eq. (127) we can show that
+∆Oτ ⩽
+∏
+k∈kL
+r2
+k, (164)
+so that (163) becomes
+Var[∂νC] ⩽ 2m2ξLTr[σ2
+ν]
+(22m− 1)2(22m− 1)ξL
+c2
+1R
+∑
+τ
+tτ, (165)
+where R =∏ξ
+k=1r2
+k.
+Let us ﬁnally show that∑
+τtτ ⩽ 2∀l,L. We recall from Eq. (156) that the coeﬃcientstτ are obtained by integrating
+each block inV (θ) over the unitary group with the respect to the Haar measure. Each time a block is integrated one
+obtains four new tensors weighted by the coeﬃcientsηi, withi = 1,..., 4 such that∑4
+µ=1|ηµ| ⩽ 1 for allm. Consider
+now the average
+⣨
+Tr[Ωi
+qpΩj
+q′p′]
+⟩
+VR
+, once all the blocks have been integrated we ﬁnd
+⣨
+Tr[Ωi
+qpΩj
+q′p′]
+⟩
+VR
+=
+4∑
+µ1=1
+ηµ1
+( 4∑
+µ2=1
+ηµ2
+(
+...
+( 4∑
+µm=1
+ηµm
+)))
+Tµ1,µ2,...,µm(O), (166)
+whereµm is the number of averaged blocks, and whereTµ1,µ2,...,µm(O) is a tensor contraction ofO. A similar equation
+can be obtained for
+⣨
+Tr[Ωi
+qp]Tr[Ωj
+q′p′]
+⟩
+VR
+as
+⣨
+Tr[Ωi
+qp]Tr[Ωj
+q′p′]
+⟩
+VR
+=
+4∑
+µ′
+1=1
+ηµ′
+1
+
+
+4∑
+µ′
+2=1
+ηµ′
+2
+
+...
+
+
+4∑
+µ′m=1
+ηµ′m
+
+
+
+
+
+Tµ′
+1,µ′
+2,...,µ′m(O), (167)
+so that
+∑
+τ
+tτ =
+4∑
+µ1=1
+ηµ1
+( 4∑
+µ2=1
+ηµ2
+(
+...
+( 4∑
+µm=1
+ηµm
+)))
+− 1
+2m
+4∑
+µ′
+1=1
+ηµ′
+1
+
+
+4∑
+µ′
+2=1
+ηµ′
+2
+
+...
+
+
+4∑
+µ′m=1
+ηµ′m
+
+
+
+
+
+ . (168)
+Taking the absolute value on both side and using the fact that∑4
+µ=1|ηµ| ⩽ 1, one gets∑
+τtτ =|∑
+τtτ| ⩽ 1+ 1
+2m ⩽ 2.
+Therefore, by usingTr
+[
+σ2
+ν
+]
+= 2m, we have
+Var[∂νC] ⩽ 22m+n
+m +l−L
+(22m− 1)2(22m− 1)
+n
+m +l−L−1c2
+1R.
+Moreover, we also ﬁnd that
+22m+n
+m +l−L
+(22m− 1)2(22m− 1)
+n
+m +l−L−1c2
+1R = 22m
+22m− 1·
+(
+22m−1− 1
+2
+)L−l
+· 2
+n
+m
+22n(1− 2−2m)
+n
+m
+c2
+1R, (169)
+36
+and since 22m−1− 1
+2 < 22m−1 and 1 ⩽ 1
+1−2−2m ⩽ 4
+3, Var[∂νC] can be upper bounded asVar[∂νC]<F n(L,l ), where
+Fn(L,l ) = 22m+(2m−1)(L−l)
+(22m− 1)· 3
+n
+m· 2(2− 3
+m )nc2
+1R. (170)
+B. Arbitrary N and ˆOik is a traceless operators such that Tr[ˆO2
+ik] ⩽ 2m
+We now consider the case whenˆOik is traceless. Speciﬁcally, we assume
+Tr
+[
+ˆOik
+]
+= 0, and Tr
+[
+ˆO2
+ik
+]
+⩽ 2m. (171)
+Note that ifˆOik is a tensor product of Pauli operators thenTr
+[
+ˆO2
+ik
+]
+= 2m.
+Proof. Let us ﬁrst analyze the case ofN = 1. Combining Lemma 3 with Eqs. (157), and (158), we ﬁnd
+⟨Ωk⟩WkL
+⩽ 2m
+22m− 1
+(
+δ(p′,q)Sk
+δ(p,q′)Sk
+− 1
+2mδ(p,q)Sk
+δ(p′,q′)Sk
+)
+⩽ 2m
+22m− 1δ(p′,q)Sk
+δ(p,q′)Sk
+, (172)
+which yields
+∏
+k∈kL
+⟨Ωk⟩WkL
+⩽ 2ξLm
+(22m− 1)ξL
+∏
+k∈kL
+δ(p′,q)Sk
+δ(p,q′)Sk
+. (173)
+Therefore, from (161), and (173), we can obtain
+Var [∂νC] ⩽ 22m−1
+(22m− 1)2(22m− 1)ξL
+c2
+1· 2ξLm
+(22m− 1)ξL
+(174)
+×
+∑
+pq
+p′q′
+∑
+τ
+tτ∆Oτ
+
+∏
+k∈kL
+δ(p′,q)Sk
+δ(p,q′)Sk
+
+δ(p,q)Sτ
+δ(p′,q′)Sτ
+δ(p,q′)Sτδ(p′,q)Sτ
+⣨
+∆Ψp′q′
+pq
+⟩
+VL
+. (175)
+Let us now consider the terms∆Oτ from (127). It is straightforward to see that∆Oτ = 0 if Sτz̸=∅, due to the fact
+that Tr[ˆOik] = 0. Hence, let us deﬁneτp as the set of indexes such thatSτz =∅. Then, we have
+∆Oτ ⩽
+{
+2m(L−l+1) (τ∈τp)
+0 ( τ̸∈τp) . (176)
+The latter implies
+∑
+τ
+tτ∆Oτ ⩽
+∑
+τ∈τp
+tτ∆Oτ ⩽ 2× 2m(L−l+1), (177)
+where we used the fact that∑tτ ⩽ 2 (see Eq. (168) in the previous section).
+According to Eqs. (136)–(139), the product
+(∏
+k∈kL
+δ(p′,q)Sk
+δ(p,q′)Sk
+)
+δ(p,q)Sτ
+δ(p′,q′)Sτ
+δ(p,q′)Sτδ(p′,q)Sτ, leads to a
+Hilbert-Schmidt distances between two quantum states, which is always upper bounded by2. We then ﬁnd
+Var [∂νC] ⩽ 22m+1
+(22m− 1)2(22m− 1)ξL
+c2
+1· 2ξLm
+(22m− 1)ξL
+· 2m(L−l+1). (178)
+Since n =m(L−l + 1) +mξL, we can rewrite (178) as
+Var [∂νC] ⩽ 22m+n+1(22m− 1)2(L−l)
+24n(1− 2−2m)
+2n
+m
+c2
+1. (179)
+37
+Finally, noting that22m− 1 ⩽ 22m and 1 ⩽ 1
+1−2−2m ⩽ 4
+3, we have
+Var [∂νC] ⩽ 22m(L−l+1)+1
+3
+2n
+m 2(3− 4
+m)n
+c2
+1. (180)
+Let us now consider the arbitraryN case, where the operatorO can be expressed as
+O =c011 +
+N∑
+i=1
+ciOi, (181)
+and where eachOi can be expressed asOi = ˆOi1⊗ ˆOi2⊗···⊗ ˆOiξ with ˆOik satisying (171).
+Here it is convinient to deﬁneCi = Tr[OiV (θ)ρV†(θ)], so thatC = c0 +∑
+iciCi. When computing the variance
+we now have to consider the cross terms arising fromCi, andCj with i̸=j:
+Var[∂νC] =⟨(∂νC)2⟩V =
+∑
+i
+c2
+i⟨(∂νCi)2⟩V +
+∑
+i̸=j
+cicj⟨∂νCi∂νCj⟩V . (182)
+First, let us remark that
+Tr
+[
+ˆOik
+]
+= 0, and Tr
+[
+ˆOikˆOjk′
+]
+⩽ 2m, ∀i,j,k,k ′ and
+{
+∆Oij
+τ ⩽ 2m(L−l+1) (τ∈τp)
+∆Oij
+τ = 0 ( τ̸∈τp) , (183)
+where ∆Oij
+τ was deﬁned in (127), and whereTr
+[
+ˆOikˆOjk′
+]
+⩽ 2m follows from the fact that Tr
+[
+ˆO2
+ik
+]
+⩽ 2m and
+Tr
+[
+ˆO2
+jk′
+]
+⩽ 2m. Hence, it is straigtforward to see that the upper bound in Eq. (180) also holds for the cross terms in
+(182), and we then have
+Var[∂νC] ⩽Fn(L,l ). (184)
+where
+Fn(L,l ) = 22m(L−l+1)+1
+3
+2n
+m 2(3− 4
+m)n
+∑
+ij
+cicj. (185)
+Supplementary Note 8: Proofs of Corollaries
+A. Proof of Corollary 1
+Corollary 1. Consider the functionFn(L,l ).
+(i) LetN = 1 and let eachˆO1k be a non-trivial projector, as in case (i) of Theorem 1. Ifc2
+1R∈O (2n) and if the
+number of layersL∈O (poly(log(n))), then
+Fn (L,l )∈O
+(
+2−(1− 1
+m log2 3)n
+)
+, (186)
+which implies thatVar[∂νC] is exponentially vanishing inn if m ⩾ 2.
+(ii) LetN be arbitrary, and let eachˆOik satisfy Tr[ˆOik] = 0 and Tr[ˆO2
+ik] ⩽ 2m, as in case (ii) of Theorem 1. If
+N∈O (2n), ci∈O (1), and if the number of layersL∈O (poly(log(n))), then
+Fn (L,l )∈O
+( 1
+2(1− 1
+m)n
+)
+, (187)
+which implies thatVar[∂νC] is exponentially vanishing inn if m ⩾ 2.
+38
+Let us ﬁrst consider case (i) in Theorem 1.
+Proof. Let us assumeL∈O (poly(log(n))), so that we have2(2m−1)(L−l)∈O
+(
+2poly(log(n)))
+. Here, note that
+lim
+n→∞
+⏐⏐⏐⏐
+poly(log(n))
+n
+⏐⏐⏐⏐ = 0,
+which means that n grows faster than the any polylogarithmic functions of n. Therefore, we can write
+O (poly(log(n))) ⊂ O(n). For a nonzero constant a, we can write O (|a|n) = O (n), and we can choose
+a = 1
+m log2 (9/8). Therefore, we can also writeO
+(
+2poly(log(n)))
+⊂O
+(
+(9/8)
+n
+m
+)
+. In addition, if we havec2
+1R∈O (2n),
+from (170), one can obtain
+Fn(L,l )∈ 1
+3
+n
+m 2(2− 3
+m)n
+O
+(
+(9/8)
+n
+m
+)
+O (2n) =O
+( 1
+2(1− 1
+m log2 3)n
+)
+, (188)
+where 1− 1
+m log2 3> 0 for m ⩾ 2. Hence the upper bound ofVar[∂νCG] exponentially vanishing whenm ⩾ 2.
+Let us now consider case (ii) in Theorem 1.
+Proof. We now have22m(L−l+1)+1)∈O
+(
+2poly(log(n)))
+⊂O
+(
+(9/8)
+n
+m
+)
+. We have from Eq. (185) that ifci,cj∈O (1),
+the following bound holds
+Fn(L,l )∈ 1
+3
+2n
+m 2(3− 4
+m)n
+O
+(
+(9/8)
+n
+m
+)
+O
+(
+22n)
+=O
+( 1
+2(1− 1
+m)n
+)
+.
+Hence, the upper bound ofVar[∂νCG] exponentially vanishing whenm ⩾ 2.
+B. Proof of Corollary 2
+Corollary 2. Consider the functionFn(L,l ). Let O be an operator of the form (118), as in Theorem 2. If at least
+one termc2
+iϵ(ρk,k′)ϵ(ˆOi) in the sum in (120) vanishes no faster thanΩ(1/ poly(n)), and if the number of layersL is
+O(log(n)), then
+Gn(L,l )∈ Ω
+( 1
+poly(n)
+)
+. (189)
+On the other hand, if at least one termc2
+iϵ(ρk,k′)ϵ(ˆOi) in the sum in (120) vanishes no faster thanΩ
+(
+1/2poly(log(n))
+)
+, and if
+the number of layers isO(poly(log(n))), then
+Gn(L,l )∈ Ω
+( 1
+2poly(log(n))
+)
+. (190)
+Proof. Let us assume that at least one termc2
+iϵ(ρk,k′)ϵ(ˆOi) in (120) vanishes no faster thanΩ (1/ poly(n)). Then, if
+we also assumeL∈O (log(n)), we have(2m + 1)−(L+l)∈ Ω (1/ poly(n)). The latter implies
+Gn(L,l )∈ Ω
+( 1
+poly(n)
+)
+Ω
+( 1
+poly(n)
+)
+= Ω
+( 1
+poly(n)
+)
+.
+On the other hand, if at least one termc2
+iϵ(ρk,k′)ϵ(ˆOi) in (120) vanishes no faster thanΩ
+(
+1/2poly(log(n)))
+, and if
+L∈O (poly(log(n))), we have(2m + 1)−(L+l)∈ Ω
+(
+1/2poly(log(n)))
+. Therefore, we obtain
+Gn(L,l )∈ Ω
+( 1
+2poly(log(n))
+)
+Ω
+( 1
+2poly(log(n))
+)
+= Ω
+( 1
+2poly(log(n))
+)
+.
+39
+Supplementary Note 9: Faithfulness of local cost function for Quantum autoencoder
+Recall that the global cost function(C′
+G) and local cost function(C′
+L) for the quantum autoencoder are deﬁned as
+C′
+G = 1− Tr
+[
+|0⟩⟨0|ρout
+B
+]
+C′
+L = 1− 1
+nB
+nB∑
+j=1
+Tr
+[(
+|0⟩⟨0|j⊗11j
+)
+ρout
+B
+]
+.
+We relate theC′
+L and C′
+G cost functions in the following proposition. Because this proposition establishes thatC′
+L
+and C′
+G vanish under the same conditions, and becauseC′
+G is faithful [11], this in turn proves thatC′
+L is a faithful
+cost function.
+Proposition 3. The cost functions for the quantum autoencoder satisfy
+C′
+L ⩽C′
+G ⩽nBC′
+L. (191)
+Proof. Let us ﬁrst proveC′
+L ⩽C′
+G. Given the stateρout
+B , we can deﬁneEj as the event of qubitj being measured on
+the|0⟩j state, such that the probability ofEj is given byPr (Ej) = Tr
+[
+ˆOL
+jρout
+B
+]
+, whereˆOL
+j =|0⟩⟨0|j⊗11j. Then, we
+can write
+C′
+G = 1− Pr
+
+
+nB⋂
+j=1
+Ej
+
+ (192)
+Similarly, for the local cost function, we have
+C′
+L = 1− 1
+nB
+nB∑
+j=1
+Pr (Ej). (193)
+Then, it is known that for any set of events{E1,··· ,EnB}, the following property always holds
+1− Pr
+
+
+nB⋂
+j=1
+Ej
+
+≥ 1
+nB
+nB∑
+j=1
+(1− Pr (Ej)) . (194)
+From the deﬁnition ofC′
+G and C′
+L in Eqs. (192)– (193), and from Eq. (194) we have
+C′
+L ⩽C′
+G. (195)
+Next, let us proveC′
+G ⩽nBC′
+L. Since for any set of events{E1,··· ,EnB}, we have
+1− Pr
+
+
+nB⋂
+j=1
+Ej
+
+ ⩽
+nB∑
+j=1
+(1− Pr (Ej)). (196)
+By deﬁnition, we ﬁnally have
+C′
+G ⩽nBC′
+L. (197)
+Combining Eqs. (195) and (197), we get (191), which indicatesC′
+L = 0 ⇐⇒ C′
+G = 0.
