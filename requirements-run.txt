@@ -1,0 +1,27 @@
+# Pinned dependencies for running the full 8-method study headless on a Linux
+# CPU box (e.g. a rented Hetzner / AWS instance) via src/run_experiments.py.
+#
+# These are the exact versions of the working local env (conda "my312"), so the
+# set is known-compatible. Install into a fresh Python 3.12 venv:
+#     python3.12 -m venv .venv && . .venv/bin/activate
+#     pip install -r requirements-run.txt
+#
+# NOTE: this is the minimal stack for the study runner. The repo's other
+# requirements.txt additionally covers the IBM-Quantum notebook (qiskit, etc.),
+# which the study runner does not need.
+
+numpy==2.0.1
+scipy==1.15.3
+pandas==2.2.3
+scikit-learn==1.6.1
+imbalanced-learn==0.13.0
+
+tensorflow==2.18.1
+keras==3.6.0
+
+pennylane==0.41.1
+pennylane-lightning==0.41.1   # fast CPU statevector backend (matches PennyLane)
+
+matplotlib==3.10.0
+seaborn>=0.13
+tqdm==4.67.1

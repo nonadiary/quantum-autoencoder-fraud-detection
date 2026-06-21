@@ -291,7 +291,8 @@ python src/run_experiments.py --reps 1 --epochs 3 --methods random_forest,qae_an
 ```
 Flags: `--n-jobs` (concurrent workers, default = all cores), `--reps`, `--methods`,
 `--epochs` (override for cheap validation). Note: at 4–13 qubits a GPU does **not**
-help; rent a high-core **CPU** instance instead.
+help; rent a high-core **CPU** instance instead. Step-by-step instructions for
+running on a rented box: [docs/RUNNING_ON_RENTED_CPU.md](docs/RUNNING_ON_RENTED_CPU.md).
 
 ### Dataset Information
 - **Original Source**: [Kaggle Credit Card Fraud Detection Dataset](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)
