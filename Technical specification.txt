@@ -1,0 +1,103 @@
+## **Technical Specification: Implementation of DIFE and LS-SWAP Quantum Autoencoder Strategies**
+
+### **1. Overview**
+
+This document outlines the implementation requirements for two new quantum autoencoder (QAE) strategies:
+
+1.  **DIFE (Destructive Interference Fidelity Estimation):** An ancilla-free QAE that estimates reconstruction fidelity by measuring the probability of a quantum state returning to its initial state after a forward and backward evolution.
+2.  **LS-SWAP (Latent Space SWAP Test):** A resource-optimized variant of the `enhanced_qvae` strategy that performs a SWAP test only on the latent space qubits to reduce the total qubit count.
+
+Both implementations should be developed using the PennyLane library and follow the coding conventions established in the existing `QAE_Angle_vs_EnhancedQVAE_Comparison.ipynb` notebook.
+
+### **2. General Requirements & Shared Parameters**
+
+The new strategies should be designed to work with the existing data pipeline and training functions. They will share the following configuration parameters with the `enhanced_qvae` model unless specified otherwise:
+
+*   **Number of Variational Layers (`L`):** 4
+*   **Data Qubits (`n_data_qubits`):** 8 (derived from 4 input features with `USE_PARALLEL_EMBEDDING = 2`)
+*   **Data Embedding:** The core data embedding and variational ansatz structure should be based on the `enhanced_qvae_layer` function, including data re-uploading and alternate RY/RX rotations.
+
+---
+
+### **3. Specification: DIFE Strategy**
+
+#### **3.1. Objective**
+
+To implement an ancilla-free QAE that avoids the qubit overhead of the SWAP test. The model's performance will be measured by its ability to perfectly reverse its own operation, which is only possible if the input state is successfully reconstructed.
+
+#### **3.2. Key Principle**
+
+The circuit consists of a full "compute" and "uncompute" sequence. First, an encoder unitary, $U_{enc}(x, \theta)$, transforms the initial state $|0\rangle^{\otimes n}$. Then, its adjoint, $U_{enc}(x, \theta)^\dagger$, is applied. The fidelity is estimated by measuring the probability of the final state returning to the initial $|0\rangle^{\otimes n}$ state. A perfect reconstruction results in constructive interference and a high probability, while errors lead to destructive interference and a lower probability.
+
+#### **3.3. Qubit Configuration**
+
+*   **Total Qubits:** `n_data_qubits` (e.g., 8).
+*   The circuit must **not** define or use any additional reference, trash, or control qubits.
+
+#### **3.4. Circuit Implementation (`dife_circuit`)**
+
+A new top-level circuit function, `dife_circuit(x, weights)`, must be created. This function will define and execute the following sequence of operations:
+
+1.  **Define the Encoder Unitary:** The encoder, $U_{enc}(x, \text{weights})$, is defined as the complete sequence of operations that constitutes the `enhanced_qvae` circuit body. This includes the initial data embedding, all variational layers, and data re-uploading. This can be implemented by wrapping the loop from the `enhanced_qvae_circuit` function into a callable function, let's call it `encoder_ansatz(x, weights)`.
+
+2.  **Forward Pass (Compute):** Apply the `encoder_ansatz(x, weights)` to the initial all-zero state.
+
+3.  **Backward Pass (Uncompute):** Immediately apply the adjoint of the encoder ansatz. This can be achieved in PennyLane using `qml.adjoint(encoder_ansatz)(x, weights)`.
+
+#### **3.5. Measurement**
+
+*   The circuit must return the expectation value of the projector onto the initial $|0\dots0\rangle$ state.
+*   **PennyLane Implementation:** `return qml.expval(qml.Projector(*n_data_qubits, wires=range(n_data_qubits)))`
+
+#### **3.6. Cost Function**
+
+*   The training process should minimize a cost function based on linear loss.
+*   **Definition:** $C = 1.0 - \text{fidelity}$, where fidelity is equal to the expectation value returned by the circuit.
+
+---
+
+### **4. Specification: LS-SWAP Strategy**
+
+#### **4.1. Objective**
+
+To implement a qubit-efficient version of the `enhanced_qvae` strategy by restricting the SWAP test to the latent space, thereby reducing the number of required ancilla qubits.
+
+#### **4.2. Key Principle**
+
+This approach maintains the direct fidelity measurement benefit of the SWAP test but reduces its resource cost. It operates on the assumption that the fidelity of the compressed latent state is a sufficient proxy for the fidelity of the entire system. The trash qubits are not explicitly measured.
+
+#### **4.3. Qubit Configuration**
+
+*   **Data Qubits (`n_data_qubits`):** 8
+*   **Latent Qubits (`n_latent`):** A predefined subset of the data qubits. For this implementation, `n_latent = 2`, corresponding to wires ``.
+*   **Reference Qubits (`n_ref_qubits`):** `n_latent` (e.g., 2).
+*   **Control Qubit:** 1.
+*   **Total Qubits:** `n_data_qubits + n_latent + 1` (e.g., 8 + 2 + 1 = 11).
+
+#### **4.4. Circuit Implementation (`ls_swap_circuit`)**
+
+A new top-level circuit function, `ls_swap_circuit(x, weights)`, must be created.
+
+1.  **Encoder:** The encoder portion of the circuit is **identical** to the `enhanced_qvae_circuit`. It applies the `enhanced_qvae_layer` logic across all `n_data_qubits`.
+
+2.  **Measurement:** The circuit will use a new measurement function, `latent_space_swap_test`, which is a modification of the existing `swap_test_measurement`.
+
+#### **4.5. Measurement (`latent_space_swap_test`)**
+
+This new function should accept parameters defining the qubit layout.
+
+*   **Inputs:** `n_data_qubits`, `n_latent`, `total_qubits`.
+*   **Logic:**
+    1.  The control qubit is the last qubit (`total_qubits - 1`).
+    2.  Apply Hadamard gates to the control qubit before and after the controlled operations.
+    3.  The `qml.CSWAP` operations are performed **only** between the latent space qubits and the reference qubits.
+    *   **Wire Mapping:**
+        *   Latent qubits are on wires `0` to `n_latent - 1`.
+        *   Reference qubits are on wires `n_data_qubits` to `n_data_qubits + n_latent - 1`.
+        *   A loop from `i` in `range(n_latent)` should apply `qml.CSWAP` to wires `[control_qubit, i, n_data_qubits + i]`.
+*   **Return Value:** The function should return the expectation value of `qml.PauliZ` on the control qubit.
+
+#### **4.6. Cost Function**
+
+*   The cost function is **identical** to that of the `enhanced_qvae` strategy.
+*   **Definition:** Linear loss, $C = 1.0 - F$, where the fidelity $F$ is calculated from the SWAP test expectation value as $F = (\text{expval} + 1.0) / 2.0$.
