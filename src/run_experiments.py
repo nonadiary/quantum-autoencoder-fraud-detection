@@ -74,6 +74,9 @@ TRAIN_FN = {
     "enhanced_qvae":         "_train_enhanced_qvae_single",
     "dife_qae":              "_train_dife_qae_single",
     "ls_swap_qae":           "_train_ls_swap_qae_single",
+    # advisor request 3 (an1.12): enhanced-qVAE with the ansatz its source paper
+    # actually used -- strongly entangling layers, YXY rotations, 6 layers
+    "enhanced_qvae_plus":    "_train_enhanced_qvae_plus_single",
     # H1 fairness: classical methods on the SAME PCA-4D space as the quantum methods
     "random_forest_4d":         "_train_rf_4d_single",
     "isolation_forest_4d":      "_train_if_4d_single",
@@ -83,13 +86,18 @@ ALL_METHODS = list(TRAIN_FN)
 # quantum methods that can be re-run at a larger encoding dimension (an1.11).
 # Their scaled form is addressed with a "<method>@<dim>" key, e.g. "qae_angle@6",
 # which the notebook resolves through quantum_scaled_single().
-SCALABLE_METHODS = ["qae_angle", "enhanced_qvae", "dife_qae", "ls_swap_qae"]
+SCALABLE_METHODS = ["qae_angle", "enhanced_qvae", "dife_qae", "ls_swap_qae",
+                    "enhanced_qvae_plus"]
+# enhanced-qVAE ablation configs, addressed as "enhanced_qvae_plus:<variant>".
+# The notebook owns the definitions (enhanced_plus_variants()); this is the only
+# method that takes a variant.
+VARIANT_METHOD = "enhanced_qvae_plus"
 # cells exec'd verbatim: imports / config / data / shared helpers
 FULL_CELLS = [1, 2, 3, 4]
 # cells holding train-function DEFINITIONS. Each ends with a top-level
 # `xxx_result = train_xxx()` demo call that would run a FULL training at import
 # time -- we strip everything except def/class/import so only the functions load.
-DEF_CELLS = [6, 7, 8, 9, 11, 12, 13, 14, 19, 20]
+DEF_CELLS = [6, 7, 8, 9, 11, 12, 13, 14, 19, 20, 21]
 
 # one cached notebook namespace per worker process (built lazily, reused across jobs)
 _NS = None
@@ -155,28 +163,41 @@ def _sanitize(result):
 
 
 def parse_method_key(method_key):
-    """'qae_angle' -> ('qae_angle', None);  'qae_angle@6' -> ('qae_angle', 6)."""
-    if "@" not in method_key:
-        return method_key, None
-    base, _, dim = method_key.partition("@")
-    return base, int(dim)
+    """Key grammar: base[:variant][@dim].
+
+    'qae_angle'                -> ('qae_angle', None, None)
+    'qae_angle@6'              -> ('qae_angle', None, 6)
+    'enhanced_qvae_plus:yxy@6' -> ('enhanced_qvae_plus', 'yxy', 6)
+    """
+    head, _, dim = method_key.partition("@")
+    base, _, variant = head.partition(":")
+    return base, (variant or None), (int(dim) if dim else None)
 
 
-def validate_method_key(method_key):
+def validate_method_key(ns, method_key):
     """Return an error string if the key is unusable, else None."""
-    base, dim = parse_method_key(method_key)
-    if dim is None:
-        return None if base in TRAIN_FN else f"unknown method key: {method_key!r}"
-    if base not in SCALABLE_METHODS:
-        return f"'{base}' cannot be scaled; scalable: {SCALABLE_METHODS}"
-    if dim < 2:
-        return f"encoding dimension must be >= 2, got {dim}"
+    base, variant, dim = parse_method_key(method_key)
+    if base not in TRAIN_FN:
+        return f"unknown method key: {method_key!r}"
+    if dim is not None:
+        if base not in SCALABLE_METHODS:
+            return f"'{base}' cannot be scaled; scalable: {SCALABLE_METHODS}"
+        if dim < 2:
+            return f"encoding dimension must be >= 2, got {dim}"
+    if variant is not None:
+        if base != VARIANT_METHOD:
+            return f"only '{VARIANT_METHOD}' takes a :variant, not '{base}'"
+        known = ns["enhanced_plus_variants"]()
+        if variant not in known:
+            return f"unknown variant {variant!r}; known: {sorted(known)}"
     return None
 
 
 def call_train(ns, method_key):
-    """Run exactly one training for a (possibly dimension-scaled) method key."""
-    base, dim = parse_method_key(method_key)
+    """Run exactly one training for a (possibly scaled / ablated) method key."""
+    base, variant, dim = parse_method_key(method_key)
+    if variant is not None:
+        return ns["_run_enhanced_plus"](ns["enhanced_plus_variants"]()[variant], dim)
     if dim is None:
         return ns[TRAIN_FN[base]]()
     return ns["quantum_scaled_single"](base, dim)
@@ -251,15 +272,19 @@ def main():
     ap.add_argument("--reps", type=int, default=None,
                     help="repetitions per method (default: STATISTICAL_CONFIG.n_repetitions = 5)")
     ap.add_argument("--methods", type=str, default="all",
-                    help="comma-separated method keys, or 'all'. Append '@<dim>' to re-run a "
-                         "quantum method at a larger encoding dimension, e.g. 'qae_angle@6'. "
-                         "Keys: " + ",".join(ALL_METHODS))
+                    help="comma-separated method keys, or 'all'. Grammar: base[:variant][@dim] "
+                         "-- '@<dim>' re-runs a quantum method at a larger encoding dimension "
+                         "('qae_angle@6'), ':<variant>' picks an enhanced-qVAE ablation config "
+                         "('enhanced_qvae_plus:yxy'). Keys: " + ",".join(ALL_METHODS))
     ap.add_argument("--epochs", type=int, default=None,
                     help="override training epochs for ALL methods (for cheap validation runs)")
     ap.add_argument("--quantum-scaling", type=str, default=None, metavar="DIMS",
                     help="ALSO run every quantum method at these encoding dimensions "
                          "(comma-separated, e.g. '6,8'); 'config' uses the notebook's "
                          "QUANTUM_SCALING_CONFIG['pca_dimensions'] (an1.11)")
+    ap.add_argument("--plus-ablation", action="store_true",
+                    help=f"expand {VARIANT_METHOD} into its ablation variants, isolating "
+                         "what each enhancement contributes (an1.12)")
     args = ap.parse_args()
 
     methods = ALL_METHODS if args.methods == "all" else [m.strip() for m in args.methods.split(",")]
@@ -267,12 +292,16 @@ def main():
     # build the namespace once in the orchestrator (for seeds, config, aggregation utils)
     ns = get_namespace()
 
+    if args.plus_ablation:
+        methods = [m for m in methods if m != VARIANT_METHOD]
+        methods += [f"{VARIANT_METHOD}:{v}" for v in ns["enhanced_plus_variants"]()]
+
     if args.quantum_scaling:
         dims = (ns["QUANTUM_SCALING_CONFIG"]["pca_dimensions"] if args.quantum_scaling == "config"
                 else [int(d) for d in args.quantum_scaling.split(",")])
         methods += [f"{m}@{d}" for d in dims for m in SCALABLE_METHODS if m in methods]
 
-    bad = [(m, err) for m in methods if (err := validate_method_key(m))]
+    bad = [(m, err) for m in methods if (err := validate_method_key(ns, m))]
     if bad:
         ap.error("; ".join(f"{m}: {err}" for m, err in bad))
 
