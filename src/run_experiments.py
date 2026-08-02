@@ -30,10 +30,14 @@ Examples
 
 Cost note for scaled runs: state-vector simulation is O(2^n) in device qubits, and
 enhanced-qVAE doubles its data qubits via parallel embedding -- dim 4/6/8 means
-13/17/21 device qubits there (vs 4/6/8 for QAE-Angle and DIFE). Measured at 1 epoch:
-enhanced-qVAE takes ~20s at dim 4 but ~160s at dim 6. Keep --n-jobs low when a
-high-dimension enhanced-qVAE job is in the pool; oversubscribing a small machine
-made it die (the notebook's own try/except then reports "train function returned None").
+13/17/21 device qubits there (vs 4/6/8 for QAE-Angle and DIFE), so enhanced-qVAE is
+what bounds the feasible dimension, not the encoding dimension itself. A gate-count x
+2^qubits table is in docs/STATUS.md 5-3; treat it as an ordering, not as timings.
+Keep --n-jobs low when a high-dimension enhanced-qVAE job is in the pool; oversubscribing
+a small machine made it die (the notebook's own try/except then reports "train function
+returned None"). Absolute per-epoch timings must be measured on the machine that will
+actually run the study -- the ones previously quoted here came from a 2-core/8GB laptop
+AND from the pre-an1.15 loop that evaluated every batch twice.
 """
 import os
 os.environ.setdefault("MPLBACKEND", "Agg")          # headless: no GUI needed
@@ -145,7 +149,11 @@ def _apply_epochs_override(ns, epochs):
 # 'n_qubits' is the DATA/encoding qubit count; enhanced-qVAE also reports
 # 'total_qubits' (data + reference + trash + control), which is what the device
 # actually allocates and therefore the resource figure the report needs.
-_PASS_KEYS = ("method", "type", "n_qubits", "total_qubits")
+# 'cost_history' is the per-epoch mean training cost (list of floats). It is what
+# lets a finished run be checked for convergence -- an enhanced variant with 2.25x
+# the parameters on a fixed 100-epoch budget may simply not have converged, and
+# that has to be distinguishable from "the enhancement did not help" (an1.15).
+_PASS_KEYS = ("method", "type", "n_qubits", "total_qubits", "cost_history")
 _SCALAR_KEYS = ("auc", "accuracy", "precision", "recall", "f1_score",
                 "gmean", "specificity", "threshold", "training_time")
 
@@ -262,6 +270,14 @@ def summarize(method_key, results, ns):
     tts = [float(r.get("training_time", 0.0)) for r in results]
     clean["training_time"] = {"mean": _num(np.mean(tts)),
                               "std": _num(np.std(tts, ddof=1)) if len(tts) > 1 else 0.0}
+    # one training curve per repetition (quantum methods only) -- kept so convergence
+    # can be judged from the saved JSON instead of re-running the study
+    curves = [r["cost_history"] for r in results if r.get("cost_history")]
+    if curves:
+        clean["cost_history"] = curves
+        finals = [c[-1] for c in curves]
+        clean["final_cost"] = {"mean": _num(np.mean(finals)),
+                               "std": _num(np.std(finals, ddof=1)) if len(finals) > 1 else 0.0}
     return clean
 
 
@@ -301,12 +317,19 @@ def main():
                 else [int(d) for d in args.quantum_scaling.split(",")])
         methods += [f"{m}@{d}" for d in dims for m in SCALABLE_METHODS if m in methods]
 
+    # '--methods qae_angle@6' together with '--quantum-scaling 6' would otherwise queue
+    # that key twice, train it 2*reps times and summarize the two batches as one method.
+    methods = list(dict.fromkeys(methods))
+
     bad = [(m, err) for m in methods if (err := validate_method_key(ns, m))]
     if bad:
         ap.error("; ".join(f"{m}: {err}" for m, err in bad))
 
     n_reps = args.reps if args.reps is not None else ns["STATISTICAL_CONFIG"]["n_repetitions"]
-    seeds = ns["experiment_seeds"][:n_reps]
+    # the notebook's `experiment_seeds` list is built for STATISTICAL_CONFIG['n_repetitions']
+    # (5), so slicing it would IndexError for a larger --reps. Regenerating draws from the
+    # same seeded stream, so the first k seeds are unchanged and runs stay comparable.
+    seeds = ns["get_experiment_seeds"](n_reps)
 
     jobs = [(mk, seeds[i], i + 1) for mk in methods for i in range(n_reps)]
     n_jobs = max(1, min(args.n_jobs, len(jobs)))
