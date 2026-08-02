@@ -1,5 +1,7 @@
 # 방법론 적합성 검토 및 개정안 (Methodology Appropriateness & Revision Proposal)
 
+> ⚠️ **정정(2026-06-24)**: 이 문서의 Part C/D는 본 연구를 엄밀 논문처럼 "재설계"하자고 제안하나, 실제 목표는 **학부 여름연구 보고서**이고 균형데이터·30D/4D·RF재구성은 *의도된 설계*다 → 대부분의 재설계 권고(주장 재규정·tier 분리·데이터 재설계·유의성검정·barren-plateau 스윕)는 **범위 초과로 보류**. 실제 사용된 유용한 핵심은 **D3-5(DIFE/LS-SWAP를 Romero/Cerezo 근거로 정정)** — 이것이 commit c655a92로 반영됨. 현재 단일 기준 문서: [STATUS.md](STATUS.md).
+
 > 선행: [methodology_review.md](methodology_review.md) (Part A 코드 점검 · Part B 문서 자체 점검)
 > 이 문서: **Part C** 방법론 적합성 판정 → **Part D** 개정안
 > beads `an1.7` · 2026-06-21

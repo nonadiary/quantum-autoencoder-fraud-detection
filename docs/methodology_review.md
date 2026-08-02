@@ -1,5 +1,7 @@
 # 방법론 점검 보고서 (Methodology Review)
 
+> ⚠️ **정정(2026-06-24)**: 이후 `Documents/yc/2025-여름연구` 자료에서, 이 문서가 "결함"으로 분류한 상당수(C1 균형데이터, H1 고전30D/양자4D, RF 재구성, QAE-Angle 구조)가 **의도된 설계**임이 확인됨. 학부 여름연구 *보고서*가 목표라 본 문서의 대규모 "연구 재설계" 권고는 범위 초과다. 실제 적용 대상은 **C2(테스트셋 누수 — 진짜 버그)** 와 **양자 메서드 정확성(DIFE/LS-SWAP — revision_proposal D3-5)** 뿐. 현재 단일 기준 문서: [STATUS.md](STATUS.md).
+
 > 대상: 8-method 양자 vs 고전 사기탐지(FDS) 비교 연구
 > 기준 문서: [실험설계.txt](실험설계.txt), [Technical specification.txt](Technical%20specification.txt)
 > 코드: [notebooks/comparison/comprehensive_comparison.ipynb](../notebooks/comparison/comprehensive_comparison.ipynb), [src/run_experiments.py](../src/run_experiments.py)
