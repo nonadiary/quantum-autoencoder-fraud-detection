@@ -23,9 +23,17 @@
 
 ⚠️ 메모리 `project-resumption-state`는 장문이라 컴팩션 때 잘린다. **색인 한 줄로 대신하지 말고 직접 열어볼 것** — 지난 세션이 그걸 안 해서 §2의 결정 재료를 놓쳤다.
 
-## 2. 결정해야 할 것
+## 2. 결정 — **확정됨 (2026-08-02)**
 
-### 결정 1 — 풀런 범위
+| 결정 | 결과 |
+|---|---|
+| 1. 풀런 범위 | **C. 핵심 + 차원확장 + ablation** (5반복 기준 135회 학습) |
+| 2. 양자 차원 값 | **박스에서 1에포크 타이밍 패스를 먼저 돌린 뒤 확정** → `an1.17` |
+| 3. LS-SWAP ≡ DIFE (§STATUS 5-4) | **추후 결정.** 이번 풀런에서는 코드를 건드리지 않는다 → `an1.16` 열어둠 |
+
+⚠️ 결정 3을 미룬 채 풀런을 돌리므로, **DIFE와 LS-SWAP은 결과에서 사실상 같은 값을 낼 것**이다(가중치가 같으면 AUC가 동일). 이는 버그가 아니라 예상된 동작이며, 결과를 볼 때 "두 방법이 우연히 비슷하다"고 읽지 말 것. 보고서 3.3 서술은 an1.16 결정 후에 확정한다.
+
+### 결정 1 — 풀런 범위 → **C 확정**
 
 현재 등록된 방법 **12개**(러너 `--methods all` 기준):
 
@@ -48,13 +56,13 @@
 | **B. + 차원 2개** | 12방법 + 5×2 확장 | 110 |
 | **C. + ablation** | 위 + 변형 6개(`enhanced_qvae_plus` 치환) | 135 |
 
-보고서(§4.4, 3.3)에 무엇을 실을지가 곧 이 결정이다. **권장: B 또는 C.** 3.3이 "양자 변형 탐색"을 요구하고(D3-a 결정), ablation은 "어느 강화가 일했는지"를 쓰게 해준다. 다만 `par3`(17큐비트)와 고차원 `enhanced`가 비용을 지배하므로 §2의 결정 2와 함께 정해야 한다.
+**C로 확정.** 3.3이 "양자 변형 탐색"을 요구하고(D3-a 결정), ablation이 있어야 "어느 강화가 일했는지"를 쓸 수 있다.
 
-> ⚠️ `--plus-ablation`과 `--quantum-scaling`은 **조합되지 않는다**(전자가 `enhanced_qvae_plus`를 변형들로 치환해 후자의 매칭이 실패). 둘 다 필요하면 `--methods enhanced_qvae_plus:all@6`처럼 명시할 것.
+> ⚠️ `--plus-ablation`과 `--quantum-scaling`은 **조합되지 않는다**(전자가 `enhanced_qvae_plus`를 변형들로 치환해 후자의 매칭이 실패). C는 둘 다 필요하므로 **`--methods`에 키를 직접 나열해서 돌린다** (`enhanced_qvae_plus:all@6` 형태). 실제 명령은 §5-1에 있다.
 
-### 결정 2 — 양자 차원(=큐비트) 값
+### 결정 2 — 양자 차원(=큐비트) 값 → **박스 타이밍 패스 후 확정 (`an1.17`)**
 
-현재 `QUANTUM_SCALING_CONFIG['pca_dimensions'] = [6, 8]`은 **지난 세션이 임의로 정한 잠정값**이다. 문서·지시에 근거가 없다 (지도교수 지시는 "큐비트 수 높여서"뿐).
+현재 `QUANTUM_SCALING_CONFIG['pca_dimensions'] = [6, 8]`은 **지난 세션이 임의로 정한 잠정값**이다. 문서·지시에 근거가 없다 (지도교수 지시는 "큐비트 수 높여서"뿐). 노트북 실측치는 기기도 다르고 이중 계산 상태에서 잰 값이라 근거로 쓸 수 없으므로, **박스에서 직접 재고 그 위에서 정한다.**
 
 **결정의 1차 자료가 이미 있다** — `results/result_temp.txt`, PCA 4~14D 완주 스윕:
 
@@ -136,6 +144,38 @@
 - 로컬은 스모크 테스트 전용: `--reps 1 --epochs 1`, 인터프리터는 `C:\ProgramData\anaconda3\envs\my312\python.exe`
 - 러너 키 문법: `base[:variant][@dim]` (예: `enhanced_qvae_plus:all@6`)
 - 문서의 "30–60분" 추정치는 **재계산 대상**. 그 값은 잡당 학습 1회를 가정하며, 그건 an1.14 이후에야 참이 되었다
+
+### 5-1. 박스에서 돌릴 순서
+
+**1단계 — 타이밍 패스 (`an1.17`, 차원 확정용).** 비싼 조합만 1에포크씩 잰다. 싼 방법(고전, d=4 양자)은 잴 필요 없다.
+
+```bash
+python src/run_experiments.py --reps 1 --epochs 1 --n-jobs 8 --methods \
+enhanced_qvae,enhanced_qvae_plus:all,enhanced_qvae_plus:par3,\
+enhanced_qvae@6,enhanced_qvae_plus:all@6,enhanced_qvae@8,enhanced_qvae_plus:all@8,\
+qae_angle@8,qae_angle@10,dife_qae@10,ls_swap_qae@10
+```
+
+- `--n-jobs`는 **풀런에서 쓸 값과 같게** 둘 것. 경합 없는 시간을 재봐야 풀런 시간을 예측하지 못한다.
+- 읽는 법: 1에포크 시간 × 100에포크 × 5반복 = 그 키의 풀런 비용. 여기서 Enhanced 계열의 상한 차원을 정한다.
+- 21큐비트 상태벡터는 33MB뿐이라 64GB에서 메모리는 문제가 아니어야 한다. 그래도 죽으면 `--n-jobs`를 낮춰 재시도하고, **그 사실을 기록**할 것(노트북에서 죽은 원인이 메모리였는지 여기서 갈린다).
+
+**2단계 — 풀런 (`an1.3`, 범위 C).** 1단계에서 정한 차원을 `<D>`에 넣는다. 고전·기본 양자·ablation은 차원과 무관하게 고정이다.
+
+```bash
+python src/run_experiments.py --reps 5 --n-jobs 16 --methods \
+random_forest,isolation_forest,cnn_autoencoder,classical_autoencoder,\
+random_forest_4d,isolation_forest_4d,classical_autoencoder_4d,\
+qae_angle,dife_qae,ls_swap_qae,enhanced_qvae,\
+enhanced_qvae_plus:base,enhanced_qvae_plus:strong,enhanced_qvae_plus:yxy,\
+enhanced_qvae_plus:layers6,enhanced_qvae_plus:all,enhanced_qvae_plus:par3,\
+qae_angle@<D>,dife_qae@<D>,ls_swap_qae@<D>,enhanced_qvae@<D>,enhanced_qvae_plus:all@<D>
+```
+
+- 위 명령은 키 22개 = **110회 학습**(차원 1개일 때). 범위 C의 135회는 **차원 2개** 기준이다: 고정분 17키(고전 7 + 양자 4 + ablation 6) + 확장 5키×2차원 = 27키 × 5반복 = 135. 차원을 늘리려면 `@<D>` 5줄을 차원마다 반복하면 된다.
+- 키가 중복돼도 이제는 자동으로 한 번만 큐잉된다(an1.15). 위 두 명령의 키는 전부 `validate_method_key` 통과를 확인했다.
+- 끝나면 `results/experiment_results_parallel_<ts>.json`을 **받아서 커밋**하고 서버를 **삭제**할 것.
+- 그 JSON에는 이제 방법별 `cost_history`(반복마다 1개)와 `final_cost`가 들어 있다 → §3-4의 수렴 확인은 이 파일만으로 된다.
 
 ## 6. 남은 이슈
 
