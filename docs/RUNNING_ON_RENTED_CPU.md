@@ -57,7 +57,7 @@ Use `tmux` (or `nohup`) so the run survives an SSH disconnect:
 nohup python src/run_experiments.py > run.log 2>&1 &
 tail -f run.log        # watch progress; Ctrl-C just stops watching, not the run
 ```
-Defaults: all 11 registered methods, 5 repetitions, `--n-jobs` = all cores. Useful flags:
+Defaults: all 12 registered methods, 5 repetitions, `--n-jobs` = all cores. Useful flags:
 - `--n-jobs 16` — cap concurrent workers (default already = core count)
 - `--reps 5` — repetitions per method
 - `--methods qae_angle,enhanced_qvae` — subset. Key grammar is `base[:variant][@dim]`
