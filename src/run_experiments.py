@@ -24,6 +24,16 @@ Examples
     python src/run_experiments.py
 # Quick wiring check (cheap): 1 rep, 3 epochs, two methods, 2 workers:
     python src/run_experiments.py --reps 1 --epochs 3 --methods random_forest,qae_angle --n-jobs 2
+# Quantum methods also at larger encoding dimensions (an1.11):
+    python src/run_experiments.py --quantum-scaling 6,8
+    python src/run_experiments.py --methods qae_angle,dife_qae --quantum-scaling config
+
+Cost note for scaled runs: state-vector simulation is O(2^n) in device qubits, and
+enhanced-qVAE doubles its data qubits via parallel embedding -- dim 4/6/8 means
+13/17/21 device qubits there (vs 4/6/8 for QAE-Angle and DIFE). Measured at 1 epoch:
+enhanced-qVAE takes ~20s at dim 4 but ~160s at dim 6. Keep --n-jobs low when a
+high-dimension enhanced-qVAE job is in the pool; oversubscribing a small machine
+made it die (the notebook's own try/except then reports "train function returned None").
 """
 import os
 os.environ.setdefault("MPLBACKEND", "Agg")          # headless: no GUI needed
@@ -49,28 +59,37 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NB = os.path.join(REPO, "notebooks", "comparison", "comprehensive_comparison.ipynb")
 RESULTS_DIR = os.path.join(REPO, "results")
 
-# method key -> train function name defined in the notebook
+# method key -> train function name defined in the notebook.
+# These are the notebook's SINGLE-run entry points (`_train_*_single`), never the
+# `train_*` wrappers: a wrapper calls run_multiple_experiments() and would re-run
+# n_repetitions trainings *inside* every job, so one 5-rep study would do 25
+# trainings per method, ignore the per-job seed, and compute std over already
+# averaged results. One job here == exactly one training (an1.14).
 TRAIN_FN = {
-    "random_forest":         "train_rf",
-    "isolation_forest":      "train_if",
-    "cnn_autoencoder":       "train_cnn",
-    "classical_autoencoder": "train_ae",
-    "qae_angle":             "train_qae_angle",
-    "enhanced_qvae":         "train_enhanced_qvae",
-    "dife_qae":              "train_dife_qae",
-    "ls_swap_qae":           "train_ls_swap_qae",
+    "random_forest":         "_train_rf_single",
+    "isolation_forest":      "_train_if_single",
+    "cnn_autoencoder":       "_train_cnn_single",
+    "classical_autoencoder": "_train_ae_single",
+    "qae_angle":             "_train_qae_angle_single",
+    "enhanced_qvae":         "_train_enhanced_qvae_single",
+    "dife_qae":              "_train_dife_qae_single",
+    "ls_swap_qae":           "_train_ls_swap_qae_single",
     # H1 fairness: classical methods on the SAME PCA-4D space as the quantum methods
-    "random_forest_4d":         "train_rf_4d",
-    "isolation_forest_4d":      "train_if_4d",
-    "classical_autoencoder_4d": "train_ae_4d",
+    "random_forest_4d":         "_train_rf_4d_single",
+    "isolation_forest_4d":      "_train_if_4d_single",
+    "classical_autoencoder_4d": "_train_ae_4d_single",
 }
 ALL_METHODS = list(TRAIN_FN)
+# quantum methods that can be re-run at a larger encoding dimension (an1.11).
+# Their scaled form is addressed with a "<method>@<dim>" key, e.g. "qae_angle@6",
+# which the notebook resolves through quantum_scaled_single().
+SCALABLE_METHODS = ["qae_angle", "enhanced_qvae", "dife_qae", "ls_swap_qae"]
 # cells exec'd verbatim: imports / config / data / shared helpers
 FULL_CELLS = [1, 2, 3, 4]
 # cells holding train-function DEFINITIONS. Each ends with a top-level
 # `xxx_result = train_xxx()` demo call that would run a FULL training at import
 # time -- we strip everything except def/class/import so only the functions load.
-DEF_CELLS = [6, 7, 8, 9, 11, 12, 13, 14, 19]
+DEF_CELLS = [6, 7, 8, 9, 11, 12, 13, 14, 19, 20]
 
 # one cached notebook namespace per worker process (built lazily, reused across jobs)
 _NS = None
@@ -115,7 +134,10 @@ def _apply_epochs_override(ns, epochs):
 # keys kept from a train result. The full dicts also hold unpicklable objects
 # (QNode 'circuit', qml 'dev', pnp 'weights', sklearn 'model', numpy arrays) which
 # would crash the worker when it pickles its return value back to the orchestrator.
-_PASS_KEYS = ("method", "type", "n_qubits")
+# 'n_qubits' is the DATA/encoding qubit count; enhanced-qVAE also reports
+# 'total_qubits' (data + reference + trash + control), which is what the device
+# actually allocates and therefore the resource figure the report needs.
+_PASS_KEYS = ("method", "type", "n_qubits", "total_qubits")
 _SCALAR_KEYS = ("auc", "accuracy", "precision", "recall", "f1_score",
                 "gmean", "specificity", "threshold", "training_time")
 
@@ -132,6 +154,34 @@ def _sanitize(result):
     return clean
 
 
+def parse_method_key(method_key):
+    """'qae_angle' -> ('qae_angle', None);  'qae_angle@6' -> ('qae_angle', 6)."""
+    if "@" not in method_key:
+        return method_key, None
+    base, _, dim = method_key.partition("@")
+    return base, int(dim)
+
+
+def validate_method_key(method_key):
+    """Return an error string if the key is unusable, else None."""
+    base, dim = parse_method_key(method_key)
+    if dim is None:
+        return None if base in TRAIN_FN else f"unknown method key: {method_key!r}"
+    if base not in SCALABLE_METHODS:
+        return f"'{base}' cannot be scaled; scalable: {SCALABLE_METHODS}"
+    if dim < 2:
+        return f"encoding dimension must be >= 2, got {dim}"
+    return None
+
+
+def call_train(ns, method_key):
+    """Run exactly one training for a (possibly dimension-scaled) method key."""
+    base, dim = parse_method_key(method_key)
+    if dim is None:
+        return ns[TRAIN_FN[base]]()
+    return ns["quantum_scaled_single"](base, dim)
+
+
 def run_job(method_key, seed, rep_id, epochs=None):
     """Worker entry point: train one method once with a given seed."""
     ns = get_namespace()
@@ -140,7 +190,7 @@ def run_job(method_key, seed, rep_id, epochs=None):
     t0 = time.time()
     try:
         with open(os.devnull, "w", encoding="utf-8") as devnull, contextlib.redirect_stdout(devnull):
-            result = ns[TRAIN_FN[method_key]]()
+            result = call_train(ns, method_key)
     except Exception as e:
         import traceback
         return {"method_key": method_key, "seed": seed, "rep_id": rep_id,
@@ -175,6 +225,8 @@ def summarize(method_key, results, ns):
         "method": results[0].get("method", method_key),
         "type": results[0].get("type", ""),
         "n_qubits": results[0].get("n_qubits", 0),
+        # device qubits: methods that allocate ancillas report it, others match n_qubits
+        "total_qubits": results[0].get("total_qubits", results[0].get("n_qubits", 0)),
         "n_repetitions": len(results),
     }
     for metric in ["auc", "gmean", "f1_score", "precision", "recall", "accuracy", "specificity"]:
@@ -199,18 +251,31 @@ def main():
     ap.add_argument("--reps", type=int, default=None,
                     help="repetitions per method (default: STATISTICAL_CONFIG.n_repetitions = 5)")
     ap.add_argument("--methods", type=str, default="all",
-                    help="comma-separated method keys, or 'all'. Keys: " + ",".join(ALL_METHODS))
+                    help="comma-separated method keys, or 'all'. Append '@<dim>' to re-run a "
+                         "quantum method at a larger encoding dimension, e.g. 'qae_angle@6'. "
+                         "Keys: " + ",".join(ALL_METHODS))
     ap.add_argument("--epochs", type=int, default=None,
                     help="override training epochs for ALL methods (for cheap validation runs)")
+    ap.add_argument("--quantum-scaling", type=str, default=None, metavar="DIMS",
+                    help="ALSO run every quantum method at these encoding dimensions "
+                         "(comma-separated, e.g. '6,8'); 'config' uses the notebook's "
+                         "QUANTUM_SCALING_CONFIG['pca_dimensions'] (an1.11)")
     args = ap.parse_args()
 
     methods = ALL_METHODS if args.methods == "all" else [m.strip() for m in args.methods.split(",")]
-    bad = [m for m in methods if m not in TRAIN_FN]
-    if bad:
-        ap.error(f"unknown method keys: {bad}. valid: {ALL_METHODS}")
 
     # build the namespace once in the orchestrator (for seeds, config, aggregation utils)
     ns = get_namespace()
+
+    if args.quantum_scaling:
+        dims = (ns["QUANTUM_SCALING_CONFIG"]["pca_dimensions"] if args.quantum_scaling == "config"
+                else [int(d) for d in args.quantum_scaling.split(",")])
+        methods += [f"{m}@{d}" for d in dims for m in SCALABLE_METHODS if m in methods]
+
+    bad = [(m, err) for m in methods if (err := validate_method_key(m))]
+    if bad:
+        ap.error("; ".join(f"{m}: {err}" for m, err in bad))
+
     n_reps = args.reps if args.reps is not None else ns["STATISTICAL_CONFIG"]["n_repetitions"]
     seeds = ns["experiment_seeds"][:n_reps]
 
@@ -278,14 +343,15 @@ def main():
         std_s = f"{std:.4f}" if std is not None else "n/a"
         return f"{mean_s}+/-{std_s}"
 
-    print(f"  {'method':<22} {'type':<14} {'G-Mean':>16} {'AUC':>16} {'qubits':>7}")
+    print(f"  {'method':<22} {'type':<14} {'G-Mean':>16} {'AUC':>16} {'data q':>7} {'dev q':>6}")
     for mk in methods:
         c = final.get(mk)
         if not c:
             print(f"  {mk:<22} {'(no results)':<14}")
             continue
         print(f"  {c['method']:<22} {c['type']:<14} "
-              f"{ms(c.get('gmean', {})):>16} {ms(c.get('auc', {})):>16} {c['n_qubits']:>7}")
+              f"{ms(c.get('gmean', {})):>16} {ms(c.get('auc', {})):>16} "
+              f"{c['n_qubits']:>7} {c['total_qubits']:>6}")
     print("=" * 78)
     print(f"  wall-clock: {time.time() - t_start:.0f}s   failures: {len(failures)}")
     print(f"  saved: {out_path}")
