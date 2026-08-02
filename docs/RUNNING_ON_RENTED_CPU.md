@@ -57,13 +57,29 @@ Use `tmux` (or `nohup`) so the run survives an SSH disconnect:
 nohup python src/run_experiments.py > run.log 2>&1 &
 tail -f run.log        # watch progress; Ctrl-C just stops watching, not the run
 ```
-Defaults: all 8 methods, 5 repetitions, `--n-jobs` = all cores. Useful flags:
+Defaults: all 11 registered methods, 5 repetitions, `--n-jobs` = all cores. Useful flags:
 - `--n-jobs 16` — cap concurrent workers (default already = core count)
 - `--reps 5` — repetitions per method
-- `--methods qae_angle,enhanced_qvae` — subset
+- `--methods qae_angle,enhanced_qvae` — subset. Key grammar is `base[:variant][@dim]`
 - `--epochs 3` — **cheap validation** run before committing to the full one
+- `--quantum-scaling 6,8` — also run each quantum method at larger encoding dimensions (an1.11)
+- `--plus-ablation` — expand `enhanced_qvae_plus` into its ansatz ablation variants (an1.12)
 
-Expected wall-clock on 16 vCPU: roughly **30–60 minutes** (vs many hours sequentially).
+> Combining `--plus-ablation` with `--quantum-scaling` does **not** scale the ablation
+> variants: the flag replaces `enhanced_qvae_plus` with its variants, and the scaling
+> expansion only matches plain method keys. Address those explicitly if you want them,
+> e.g. `--methods enhanced_qvae_plus:all@6`.
+
+**Wall-clock estimate needs recomputing before the run.** The old "30–60 minutes on 16
+vCPU" figure was for the original 8 methods × 5 reps, and two changes since then pull in
+opposite directions: an1.14 made each job exactly one training instead of five (**5×
+cheaper**), while an1.11/an1.12 and the PCA-4D classical variants added methods (**more
+jobs**). Decide the scope, then size it with a `--epochs 1` timing pass on the box.
+
+**Do not carry over cost limits measured on the laptop.** `docs/STATUS.md` §4-1/§4-2
+quote per-epoch timings taken on a 2-core/8 GB machine, including one aborted run; they
+are lower bounds under contention, not properties of the study. The 21-qubit
+enhanced-qVAE case in particular is memory-bound there and may be fine on 64 GB.
 
 ## 5. Get the results back
 
